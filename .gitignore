@@ -1,0 +1,9 @@
+# build files
+JOOSA-src/*.o
+JOOSA-src/*.c
+JOOSA-src/joos
+JOOSA-src/y.tab.h
+
+# JOOS files
+*.j
+*.class
