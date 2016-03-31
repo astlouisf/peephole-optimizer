@@ -93,6 +93,28 @@ int simplify_goto_goto(CODE **c)
   return 0;
 }
 
+// New //
+
+/* istore k       iload k        iconst k	(0<=k<=5) (somewhere around 5)
+ * ------>        ------>        ------>
+/* istore_k       iload_k        iconst_k	(check if there's another paramer?)
+ */
+
+/* 
+ * iconst x
+ * --------->
+ * 
+ */ 
+
+/* 
+ * 
+ * --------->
+ * 
+ */ 
+
+
+
+
 #define OPTS 4
 
 OPTI optimization[OPTS] = {simplify_multiplication_right,
