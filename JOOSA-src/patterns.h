@@ -108,9 +108,9 @@ int simplify_goto_goto(CODE **c)
  */
 
 
-/* istore k       iload k        iconst k	(0<=k<=3)
+/* istore k       iload k        ldc_int d	(0<=k<=3) (0<=d<=5)
  * ------>        ------>        ------>
-/* istore_k       iload_k        iconst_k
+ * istore_k       iload_k        iconst_d
  */
 
 /* x + 0 = x
@@ -121,6 +121,67 @@ int simplify_goto_goto(CODE **c)
  * iload x
  */
 
+/* nop
+ * --------->
+ */ 
+
+/* 
+ * dup
+ * pop
+ * --------->
+ */
+
+/* 
+ * pop
+ * dup
+ * --------->
+ */
+
+/* 
+ * swap
+ * swap
+ * --------->
+ */
+
+// branching //
+/* 
+ * iload_0
+ * ifeq L
+ * --------->
+ * goto L
+ */
+
+/* 
+ * iload k (or iload_k, where k != 0)
+ * ifne L
+ * --------->
+ * goto L
+ */
+
+/* isub
+ * ifeq L
+ * --------->
+ * if_icmpeq L
+ */ 
+
+/* isub
+ * ifne L
+ * --------->
+ * if_icmpne L
+ */ 
+
+/* aconst_null
+ * ifnull L
+ * --------->
+ * goto L
+ */ 
+
+/* 
+ * L:    (with no incoming edges)
+ * --------->
+ * 
+ */
+
 
 
 // loop folding?
@@ -128,8 +189,8 @@ int simplify_goto_goto(CODE **c)
 // simply arithmetic expressions that have constants?
 // factor arithmetic expressions?
 // simplify control flow to better optimize?
-// swap order arithmetic expressions because it might allow for optimizations?
 // write a program to test out the permutations of our rules to get the best order of optimizations?
+// swap order arithmetic expressions because it might allow for optimizations? This would remove the need for the following symmetric patterns but doesn't follow a lexicographic order. If we put the swap at the beginning though, it might find an optimizing rule and that that iteration will decrease the lexicographic order.
 
 /* 
  * 
@@ -167,8 +228,7 @@ int simplify_goto_goto(CODE **c)
  * iinc x k
  */ 
 
-
-
+// what's i2c?
 
 
 #define OPTS 4
