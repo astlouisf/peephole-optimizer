@@ -95,22 +95,78 @@ int simplify_goto_goto(CODE **c)
 
 // New //
 
-/* istore k       iload k        iconst k	(0<=k<=5) (somewhere around 5)
- * ------>        ------>        ------>
-/* istore_k       iload_k        iconst_k	(check if there's another paramer?)
+
+
+
+/* should we do this? (if so, repeat for other arithmetic operations)
+ * n + m = (n+m)
+ * ldc n
+ * ldc m
+ * iadd
+ * ------>
+ * ldc (n+m)
  */
 
-/* 
- * iconst x
- * --------->
- * 
- */ 
+
+/* istore k       iload k        iconst k	(0<=k<=3)
+ * ------>        ------>        ------>
+/* istore_k       iload_k        iconst_k
+ */
+
+/* x + 0 = x
+ * iload x
+ * ldc 0
+ * iadd
+ * ------>
+ * iload x
+ */
+
+
+
+// loop folding?
+// put in loop invariants? (vms slide 60)
+// simply arithmetic expressions that have constants?
+// factor arithmetic expressions?
+// simplify control flow to better optimize?
+// swap order arithmetic expressions because it might allow for optimizations?
+// write a program to test out the permutations of our rules to get the best order of optimizations?
 
 /* 
  * 
  * --------->
  * 
  */ 
+
+
+
+
+
+/* symmetric version of previous patterns */
+/* 
+ * ldc 0          ldc 1          ldc 2
+ * iload x        iload x        iload x
+ * imul           imul           imul
+ * ------>        ------>        ------>
+ * ldc 0          iload x        iload x
+ *                               dup
+ *                               iadd
+ */
+
+/* ldc 0
+ * iload x
+ * iadd
+ * ------>
+ * iload x
+ */
+
+/* ldc k   (0<=k<=127)
+ * iload x
+ * iadd
+ * istore x
+ * --------->
+ * iinc x k
+ */ 
+
 
 
 
