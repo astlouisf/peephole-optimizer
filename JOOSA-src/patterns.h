@@ -107,41 +107,69 @@ int simplify_goto_goto(CODE **c)
  * ldc (n+m)
  */
 
+/* istore k       iload k	(0<=k<=3)
+ * ------>        ------>
+ * istore_k       iload_k
+ */
 
-/* istore k       iload k        ldc_int d	(0<=k<=3) (0<=d<=5)
- * ------>        ------>        ------>
- * istore_k       iload_k        iconst_d
+/* ldc_int k	(0<=k<=5)
+ * ------>
+ * iconst_k
  */
 
 /* x + 0 = x
- * iload x
  * ldc 0
  * iadd
  * ------>
- * iload x
  */
+int zero_addition(CODE **c)
+{ int k;
+  if (is_ldc_int(*c,&k) &&
+      is_iadd(next(*c)) &&
+      k == 0) {
+    return replace(c,2,NULL);
+  }
+  return 0;
+}
 
 /* nop
  * --------->
  */ 
+int remove_nop(CODE **c)
+{ 
+  if (is_nop(*c)) {
+    return replace(c,1,NULL);
+  }
+  return 0;
+}
 
 /* 
  * dup
  * pop
  * --------->
  */
-
-/* 
- * pop
- * dup
- * --------->
- */
+int remove_dup_pop(CODE **c)
+{ 
+  if (is_dup(*c) &&
+      is_pop(next(*c))) {
+    return replace(c,2,NULL);
+  }
+  return 0;
+}
 
 /* 
  * swap
  * swap
  * --------->
  */
+int remove_2_swap(CODE **c)
+{ 
+  if (is_swap(*c) &&
+      is_swap(next(*c))) {
+    return replace(c,2,NULL);
+  }
+  return 0;
+}
 
 // branching //
 /* 
@@ -185,8 +213,8 @@ int simplify_goto_goto(CODE **c)
 
 
 // loop folding?
-// put in loop invariants? (vms slide 60)
-// simply arithmetic expressions that have constants?
+// put in loop invariants? (VMs slide 60)
+// simplify arithmetic expressions that have constants?
 // factor arithmetic expressions?
 // simplify control flow to better optimize?
 // write a program to test out the permutations of our rules to get the best order of optimizations?
@@ -228,8 +256,19 @@ int simplify_goto_goto(CODE **c)
  * iinc x k
  */ 
 
-// what's i2c?
+/* 0 + x = x
+ * ldc 0
+ * iload x
+ * iadd
+ * ------>
+ * iload x
+ */
 
+/* would this change anything (with an empty stack)?
+ * pop
+ * dup
+ * --------->
+ */
 
 #define OPTS 4
 
