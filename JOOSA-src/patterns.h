@@ -93,7 +93,25 @@ int simplify_goto_goto(CODE **c)
   return 0;
 }
 
-// New //
+
+
+/* Group comp520-2016-14's peephole patterns */
+
+/* dup
+ * istore x
+ * pop
+ * -------->
+ * istore x
+ */
+int simplify_istore(CODE **c)
+{ int x;
+  if (is_dup(*c) &&
+      is_istore(next(*c),&x) &&
+      is_pop(next(next(*c)))) {
+     return replace(c,3,makeCODEistore(x,NULL));
+  }
+  return 0;
+}
 
 
 
@@ -171,7 +189,7 @@ int remove_2_swap(CODE **c)
   return 0;
 }
 
-// branching //
+/* branching */
 /* 
  * iload_0
  * ifeq L
@@ -211,7 +229,7 @@ int remove_2_swap(CODE **c)
  */
 
 
-
+/*
 // loop folding?
 // put in loop invariants? (VMs slide 60)
 // simplify arithmetic expressions that have constants?
@@ -219,7 +237,7 @@ int remove_2_swap(CODE **c)
 // simplify control flow to better optimize?
 // write a program to test out the permutations of our rules to get the best order of optimizations?
 // swap order arithmetic expressions because it might allow for optimizations? This would remove the need for the following symmetric patterns but doesn't follow a lexicographic order. If we put the swap at the beginning though, it might find an optimizing rule and that that iteration will decrease the lexicographic order.
-
+*/
 /* 
  * 
  * --------->
@@ -270,9 +288,24 @@ int remove_2_swap(CODE **c)
  * --------->
  */
 
+
+
+/****** Old style - still works, but better to use new style.
 #define OPTS 4
 
 OPTI optimization[OPTS] = {simplify_multiplication_right,
                            simplify_astore,
                            positive_increment,
                            simplify_goto_goto};
+********/
+
+/* new style for giving patterns */
+
+int init_patterns()
+{ ADD_PATTERN(simplify_multiplication_right);
+  ADD_PATTERN(simplify_astore);
+  ADD_PATTERN(positive_increment);
+  ADD_PATTERN(simplify_goto_goto);
+  ADD_PATTERN(simplify_istore);
+  return 1;
+}
