@@ -1,3 +1,11 @@
+/******************************
+ * Group comp520-2016-14
+ * ============================
+ * - Alexandre St-Louis Fortier
+ * - Stefan Knudsen
+ * - Cheuk Chuen Siow
+ ******************************/
+
 /*
  * JOOS is Copyright (C) 1997 Laurie Hendren & Michael I. Schwartzbach
  *
@@ -95,7 +103,9 @@ int simplify_goto_goto(CODE **c)
 
 
 
-/* Group comp520-2016-14's peephole patterns */
+/*******************************************
+ * Group comp520-2016-14's peephole patterns
+ *******************************************/
 
 /* dup
  * istore x
@@ -113,6 +123,193 @@ int simplify_istore(CODE **c)
   return 0;
 }
 
+/* aload x
+ * aload x
+ * --------->
+ * aload x
+ * dup
+ */
+int simplify_aload(CODE **c)
+{ int x1, x2;
+  if (is_aload(*c,&x1) &&
+      is_aload(next(*c),&x2) &&
+      x1 == x2) {
+    return replace(c,2,makeCODEaload(x1,
+                       makeCODEdup(NULL)));
+  }
+  return 0;
+}
+
+/* iload x
+ * iload x
+ * --------->
+ * iload x
+ * dup
+ */
+int simplify_iload(CODE **c)
+{ int x1, x2;
+  if (is_iload(*c,&x1) &&
+      is_iload(next(*c),&x2) &&
+      x1 == x2) {
+    return replace(c,2,makeCODEiload(x1,
+                       makeCODEdup(NULL)));
+  }
+  return 0;
+}
+
+/* dup
+ * aload x
+ * swap
+ * putfield k
+ * pop
+ * -------->
+ * aload x
+ * swap
+ * putfield k
+ */
+int simplify_aload_swap_putfield(CODE **c)
+{ int x; char* k;
+  if (is_dup(*c) &&
+      is_aload(next(*c),&x) &&
+      is_swap(next(next(*c))) &&
+      is_putfield(next(next(next(*c))),&k) &&
+      is_pop(next(next(next(next(*c)))))) {
+     return replace(c,5,makeCODEaload(x,
+                        makeCODEswap(
+                        makeCODEputfield(k,NULL))));
+  }
+  return 0;
+}
+
+/* ldc 0
+ * iadd
+ * ------>
+ * 
+ */
+int remove_zero_addition(CODE **c)
+{ int k;
+  if (is_ldc_int(*c,&k) &&
+      is_iadd(next(*c)) &&
+      k == 0) {
+    return replace_modified(c,2,NULL);
+  }
+  return 0;
+}
+
+/* ldc 0
+ * isub
+ * ------>
+ * 
+ */
+int remove_zero_subtraction(CODE **c)
+{ int k;
+  if (is_ldc_int(*c,&k) &&
+      is_isub(next(*c)) &&
+      k == 0) {
+    return replace_modified(c,2,NULL);
+  }
+  return 0;
+}
+
+/* ldc 1
+ * imul
+ * ------>
+ * 
+ */
+int remove_one_multiplication(CODE **c)
+{ int k;
+  if (is_ldc_int(*c,&k) &&
+      is_imul(next(*c)) &&
+      k == 1) {
+    return replace_modified(c,2,NULL);
+  }
+  return 0;
+}
+
+/* ldc 1
+ * idiv
+ * ------>
+ * 
+ */
+int remove_one_division(CODE **c)
+{ int k;
+  if (is_ldc_int(*c,&k) &&
+      is_idiv(next(*c)) &&
+      k == 1) {
+    return replace_modified(c,2,NULL);
+  }
+  return 0;
+}
+
+/* nop
+ * --------->
+ * 
+ */ 
+int remove_nop(CODE **c)
+{ 
+  if (is_nop(*c)) {
+    return replace_modified(c,1,NULL);
+  }
+  return 0;
+}
+
+/* dup
+ * pop
+ * --------->
+ * 
+ */
+int remove_dup_pop(CODE **c)
+{ 
+  if (is_dup(*c) &&
+      is_pop(next(*c))) {
+    return replace_modified(c,2,NULL);
+  }
+  return 0;
+}
+
+/* swap
+ * swap
+ * --------->
+ * 
+ */
+int remove_2_swap(CODE **c)
+{ 
+  if (is_swap(*c) &&
+      is_swap(next(*c))) {
+    return replace_modified(c,2,NULL);
+  }
+  return 0;
+}
+
+/* aload x
+ * astore x
+ * --------->
+ * 
+ */
+int remove_aload_astore(CODE **c)
+{ int x1, x2;
+  if (is_aload(*c,&x1) &&
+      is_astore(next(*c),&x2) &&
+      x1 == x2) {
+    return replace_modified(c,2,NULL);
+  }
+  return 0;
+}
+
+/* iload x
+ * istore x
+ * --------->
+ * 
+ */
+int remove_iload_istore(CODE **c)
+{ int x1, x2;
+  if (is_iload(*c,&x1) &&
+      is_istore(next(*c),&x2) &&
+      x1 == x2) {
+    return replace_modified(c,2,NULL);
+  }
+  return 0;
+}
 
 
 
@@ -125,11 +322,6 @@ int simplify_istore(CODE **c)
  * ldc (n+m)
  */
 
-/* istore k       iload k	(0<=k<=3)
- * ------>        ------>
- * istore_k       iload_k
- */
-
 /* also do this for astore and for _k (does this save memory?)
  * istore k
  * iload m
@@ -139,72 +331,10 @@ int simplify_istore(CODE **c)
  * istore k
  */
 
-/* 
- * iconst k
- * iconst k
- * ------>
- * iconst k
- * dup
- */
-
 /* ldc_int k	(0<=k<=5)
  * ------>
  * iconst_k
  */
-
-/* x + 0 = x
- * ldc 0
- * iadd
- * ------>
- */
-int zero_addition(CODE **c)
-{ int k;
-  if (is_ldc_int(*c,&k) &&
-      is_iadd(next(*c)) &&
-      k == 0) {
-    return replace(c,2,NULL);
-  }
-  return 0;
-}
-
-/* nop
- * --------->
- */ 
-int remove_nop(CODE **c)
-{ 
-  if (is_nop(*c)) {
-    return replace(c,1,NULL);
-  }
-  return 0;
-}
-
-/* 
- * dup
- * pop
- * --------->
- */
-int remove_dup_pop(CODE **c)
-{ 
-  if (is_dup(*c) &&
-      is_pop(next(*c))) {
-    return replace(c,2,NULL);
-  }
-  return 0;
-}
-
-/* 
- * swap
- * swap
- * --------->
- */
-int remove_2_swap(CODE **c)
-{ 
-  if (is_swap(*c) &&
-      is_swap(next(*c))) {
-    return replace(c,2,NULL);
-  }
-  return 0;
-}
 
 /* branching */
 /* 
@@ -359,5 +489,17 @@ int init_patterns()
   ADD_PATTERN(positive_increment);
   ADD_PATTERN(simplify_goto_goto);
   ADD_PATTERN(simplify_istore);
+  ADD_PATTERN(simplify_aload);
+  ADD_PATTERN(simplify_iload);
+  ADD_PATTERN(simplify_aload_swap_putfield);
+  ADD_PATTERN(remove_zero_addition);
+  ADD_PATTERN(remove_zero_subtraction);
+  ADD_PATTERN(remove_one_multiplication);
+  ADD_PATTERN(remove_one_division);
+  ADD_PATTERN(remove_nop);
+  ADD_PATTERN(remove_dup_pop);
+  ADD_PATTERN(remove_2_swap);
+  ADD_PATTERN(remove_aload_astore);
+  ADD_PATTERN(remove_iload_istore);
   return 1;
 }
