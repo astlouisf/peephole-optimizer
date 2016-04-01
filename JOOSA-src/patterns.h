@@ -130,6 +130,23 @@ int simplify_istore(CODE **c)
  * istore_k       iload_k
  */
 
+/* also do this for astore and for _k (does this save memory?)
+ * istore k
+ * iload m
+ * k = m
+ * ------>
+ * dup
+ * istore k
+ */
+
+/* 
+ * iconst k
+ * iconst k
+ * ------>
+ * iconst k
+ * dup
+ */
+
 /* ldc_int k	(0<=k<=5)
  * ------>
  * iconst_k
@@ -197,6 +214,12 @@ int remove_2_swap(CODE **c)
  * goto L
  */
 
+/* L1:
+ * L2:
+ * ------>
+ * L1:    (replace all references to L2 with L1)
+ */
+
 /* 
  * iload k (or iload_k, where k != 0)
  * ifne L
@@ -220,6 +243,35 @@ int remove_2_swap(CODE **c)
  * ifnull L
  * --------->
  * goto L
+ */ 
+
+/* astore k
+ * getfield ...
+ * astore k
+ * --------->
+ * astore k
+ * dup
+ * getfield ...
+ */ 
+
+/* repeat this for loads (but with swap at the end) and with istores and iloads
+ * swap
+ * astore k
+ * astore m
+ * --------->
+ * astore m
+ * astore k
+ */ 
+
+/* THIS MIGHT NOT BE SOUND, ONLY IMPLEMENT THIS IF DUP+SWAP < ALOAD K
+ * astore k
+ * aload m
+ * aload k
+ * --------->
+ * dup
+ * astore k
+ * aload m
+ * swap
  */ 
 
 /* 
