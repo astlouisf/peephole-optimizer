@@ -117,7 +117,7 @@ int simplify_istore(CODE **c)
 { int x;
   if (is_dup(*c) &&
       is_istore(next(*c),&x) &&
-      is_pop(next(next(*c)))) {
+      is_pop(nextby(*c,2))) {
      return replace(c,3,makeCODEistore(x,NULL));
   }
   return 0;
@@ -130,7 +130,7 @@ int simplify_istore(CODE **c)
  * dup
  */
 int simplify_aload(CODE **c)
-{ int x1, x2;
+{ int x1,x2;
   if (is_aload(*c,&x1) &&
       is_aload(next(*c),&x2) &&
       x1 == x2) {
@@ -147,7 +147,7 @@ int simplify_aload(CODE **c)
  * dup
  */
 int simplify_iload(CODE **c)
-{ int x1, x2;
+{ int x1,x2;
   if (is_iload(*c,&x1) &&
       is_iload(next(*c),&x2) &&
       x1 == x2) {
@@ -171,9 +171,9 @@ int simplify_aload_swap_putfield(CODE **c)
 { int x; char* k;
   if (is_dup(*c) &&
       is_aload(next(*c),&x) &&
-      is_swap(next(next(*c))) &&
-      is_putfield(next(next(next(*c))),&k) &&
-      is_pop(next(next(next(next(*c)))))) {
+      is_swap(nextby(*c,2)) &&
+      is_putfield(nextby(*c,3),&k) &&
+      is_pop(nextby(*c,4))) {
      return replace(c,5,makeCODEaload(x,
                         makeCODEswap(
                         makeCODEputfield(k,NULL))));
@@ -181,62 +181,105 @@ int simplify_aload_swap_putfield(CODE **c)
   return 0;
 }
 
-/* ldc 0
- * iadd
+/* ldc x
+ * ldc y
+ * iadd / isub / imul / idiv / irem
  * ------>
- * 
+ * ldc x (+|-|*|/|%) y
  */
-int remove_zero_addition(CODE **c)
-{ int k;
-  if (is_ldc_int(*c,&k) &&
-      is_iadd(next(*c)) &&
-      k == 0) {
-    return replace_modified(c,2,NULL);
+int simplify_constant_op(CODE **c)
+{ int x,y,k;
+  if (is_ldc_int(*c,&x) &&
+      is_ineg(next(*c)) &&
+      is_ldc_int(nextby(*c,2),&y) &&
+      is_ineg(nextby(*c,3))) {
+    if (is_iadd(nextby(*c,4))) {
+      k = (-x)+(-y);
+    } else if (is_isub(nextby(*c,4))) {
+      k = (-x)-(-y);
+    } else if (is_imul(nextby(*c,4))) {
+      k = (-x)*(-y);
+    } else if (is_idiv(nextby(*c,4))) {
+      k = (-x)/(-y);
+    } else if (is_irem(nextby(*c,4))) {
+      k = (-x)%(-y);
+    }
+    if (k >= 0) {
+      return replace(c,5,makeCODEldc_int(k,NULL));
+    }
+  } else if (is_ldc_int(*c,&x) &&
+      is_ldc_int(next(*c),&y) &&
+      is_ineg(nextby(*c,2))) {
+    if (is_iadd(nextby(*c,3))) {
+      k = x+(-y);
+    } else if (is_isub(nextby(*c,3))) {
+      k = x-(-y);
+    } else if (is_imul(nextby(*c,3))) {
+      k = x*(-y);
+    } else if (is_idiv(nextby(*c,3))) {
+      k = x/(-y);
+    } else if (is_irem(nextby(*c,3))) {
+      k = x%(-y);
+    }
+    if (k >= 0) {
+      return replace(c,4,makeCODEldc_int(k,NULL));
+    }
+  } else if (is_ldc_int(*c,&x) &&
+      is_ineg(next(*c)) &&
+      is_ldc_int(nextby(*c,2),&y)) {
+    if (is_iadd(nextby(*c,3))) {
+      k = (-x)+y;
+    } else if (is_isub(nextby(*c,3))) {
+      k = (-x)-y;
+    } else if (is_imul(nextby(*c,3))) {
+      k = (-x)*y;
+    } else if (is_idiv(nextby(*c,3))) {
+      k = (-x)/y;
+    } else if (is_irem(nextby(*c,3))) {
+      k = (-x)%y;
+    }
+    if (k >= 0) {
+      return replace(c,4,makeCODEldc_int(k,NULL));
+    }
+  } else if (is_ldc_int(*c,&x) &&
+      is_ldc_int(next(*c),&y)) {
+    if (is_iadd(nextby(*c,2))) {
+      k = x+y;
+    } else if (is_isub(nextby(*c,2))) {
+      k = x-y;
+    } else if (is_imul(nextby(*c,2))) {
+      k = x*y;
+    } else if (is_idiv(nextby(*c,2))) {
+      k = x/y;
+    } else if (is_irem(nextby(*c,2))) {
+      k = x%y;
+    }
+    if (k >= 0) {
+      return replace(c,3,makeCODEldc_int(k,NULL));
+    }
   }
   return 0;
 }
 
-/* ldc 0
- * isub
- * ------>
+/* ldc 0          ldc 1
+ * iadd / isub    imul / idiv
+ * ------>        ------>
  * 
  */
-int remove_zero_subtraction(CODE **c)
+int remove_trivial_op(CODE **c)
 { int k;
-  if (is_ldc_int(*c,&k) &&
-      is_isub(next(*c)) &&
-      k == 0) {
-    return replace_modified(c,2,NULL);
-  }
-  return 0;
-}
-
-/* ldc 1
- * imul
- * ------>
- * 
- */
-int remove_one_multiplication(CODE **c)
-{ int k;
-  if (is_ldc_int(*c,&k) &&
-      is_imul(next(*c)) &&
-      k == 1) {
-    return replace_modified(c,2,NULL);
-  }
-  return 0;
-}
-
-/* ldc 1
- * idiv
- * ------>
- * 
- */
-int remove_one_division(CODE **c)
-{ int k;
-  if (is_ldc_int(*c,&k) &&
-      is_idiv(next(*c)) &&
-      k == 1) {
-    return replace_modified(c,2,NULL);
+  if (is_ldc_int(*c,&k)) {
+    if (k == 0) {
+      if (is_iadd(next(*c)) ||
+          is_isub(next(*c))) {
+        return replace_modified(c,2,NULL);
+      }
+    } else if (k == 1) {
+      if (is_imul(next(*c)) ||
+          is_idiv(next(*c))) {
+        return replace_modified(c,2,NULL);
+      }
+    }
   }
   return 0;
 }
@@ -302,7 +345,7 @@ int remove_aload_astore(CODE **c)
  * 
  */
 int remove_iload_istore(CODE **c)
-{ int x1, x2;
+{ int x1,x2;
   if (is_iload(*c,&x1) &&
       is_istore(next(*c),&x2) &&
       x1 == x2) {
@@ -313,15 +356,6 @@ int remove_iload_istore(CODE **c)
 
 
 
-/* should we do this? (if so, repeat for other arithmetic operations)
- * n + m = (n+m)
- * ldc n
- * ldc m
- * iadd
- * ------>
- * ldc (n+m)
- */
-
 /* also do this for astore and for _k (does this save memory?)
  * istore k
  * iload m
@@ -329,11 +363,6 @@ int remove_iload_istore(CODE **c)
  * ------>
  * dup
  * istore k
- */
-
-/* ldc_int k	(0<=k<=5)
- * ------>
- * iconst_k
  */
 
 /* branching */
@@ -492,10 +521,8 @@ int init_patterns()
   ADD_PATTERN(simplify_aload);
   ADD_PATTERN(simplify_iload);
   ADD_PATTERN(simplify_aload_swap_putfield);
-  ADD_PATTERN(remove_zero_addition);
-  ADD_PATTERN(remove_zero_subtraction);
-  ADD_PATTERN(remove_one_multiplication);
-  ADD_PATTERN(remove_one_division);
+  ADD_PATTERN(simplify_constant_op);
+  ADD_PATTERN(remove_trivial_op);
   ADD_PATTERN(remove_nop);
   ADD_PATTERN(remove_dup_pop);
   ADD_PATTERN(remove_2_swap);
