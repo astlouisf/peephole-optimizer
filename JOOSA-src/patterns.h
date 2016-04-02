@@ -388,11 +388,142 @@ int remove_iload_istore(CODE **c)
  * --------->
  * 
  */
-int remove_deadlabel(CODE **c) {
-  int l;
+int remove_deadlabel(CODE **c)
+{ int l;
   if(is_label(*c,&l) &&
      deadlabel(l)) {
     return kill_line(c);
+  }
+  return 0;
+}
+
+/* if_icmpeq true_1
+ * iconst_0
+ * goto stop_2
+ * true_1:
+ * iconst_1
+ * stop_2:
+ * ifeq stop_0
+ * ...
+ * stop_0:
+ * --------->
+ * if_icmpne stop_0
+ * ...
+ * stop_0:
+ */
+int simplify_if_stmt1(CODE **c)
+{ int l1,l2;
+  if (is_if(c,&l1) &&
+      is_ifeq(nextby(destination(l1),3), &l2)) {
+    copylabel(l2);
+    if (is_if_icmpeq(*c,&l1)) {
+      return replace_modified(c,7,makeCODEif_icmpne(l2,NULL));
+    } else if (is_if_icmpgt(*c,&l1)) {
+      return replace_modified(c,7,makeCODEif_icmple(l2,NULL));
+    } else if (is_if_icmplt(*c,&l1)) {
+      return replace_modified(c,7,makeCODEif_icmpge(l2,NULL));
+    } else if (is_if_icmple(*c,&l1)) {
+      return replace_modified(c,7,makeCODEif_icmpgt(l2,NULL));
+    } else if (is_if_icmpge(*c,&l1)) {
+      return replace_modified(c,7,makeCODEif_icmplt(l2,NULL));
+    } else if (is_if_icmpne(*c,&l1)) {
+      return replace_modified(c,7,makeCODEif_icmpeq(l2,NULL));
+    }
+  }
+  return 0;
+}
+
+/* Extension of simplify_if_stmt1 to simplify the following if statement:
+ * if (i != 0 && i != 4 && i != 8 ) {}
+ */
+int simplify_if_stmt2(CODE **c)
+{ int l1,l2,l3,next_if;
+  if (is_if(c,&l1) &&
+      is_dup(nextby(destination(l1),3)) &&
+      is_ifeq(nextby(destination(l1),4),&l2)) {
+    next_if = 1;
+    while (next_if) {
+      if (is_dup(next(destination(l2))) &&
+          is_ifeq(nextby(destination(l2),2),&l2)) {
+        next_if = 1;
+      } else {
+        next_if = 0;
+      }
+    }
+    if (is_ifeq(next(destination(l2)),&l3)) {
+      copylabel(l3);
+      if (is_if_icmpeq(*c,&l1)) {
+        return replace_modified(c,9,makeCODEif_icmpne(l3,NULL));
+      } else if (is_if_icmpgt(*c,&l1)) {
+        return replace_modified(c,9,makeCODEif_icmple(l3,NULL));
+      } else if (is_if_icmplt(*c,&l1)) {
+        return replace_modified(c,9,makeCODEif_icmpge(l3,NULL));
+      } else if (is_if_icmple(*c,&l1)) {
+        return replace_modified(c,9,makeCODEif_icmpgt(l3,NULL));
+      } else if (is_if_icmpge(*c,&l1)) {
+        return replace_modified(c,9,makeCODEif_icmplt(l3,NULL));
+      } else if (is_if_icmpne(*c,&l1)) {
+        return replace_modified(c,9,makeCODEif_icmpeq(l3,NULL));
+      }
+    }
+  }
+  return 0;
+}
+
+/* Extension of simplify_if_stmt1 to simplify the following if statement:
+ * if (i == 0 || i == 4 || i == 8 ) {}
+ */
+int simplify_if_stmt3(CODE **c)
+{ int l1,l2,l3,next_if;
+  if (is_if(c,&l1) &&
+      is_dup(nextby(destination(l1),3)) &&
+      is_ifne(nextby(destination(l1),4),&l2)) {
+    next_if = 1;
+    while (next_if) {
+      if (is_dup(next(destination(l2))) &&
+          is_ifne(nextby(destination(l2),2),&l2)) {
+        next_if = 1;
+      } else {
+        next_if = 0;
+      }
+    }
+    copylabel(l2);
+    if (is_if_icmpeq(*c,&l1)) {
+      return replace_modified(c,9,makeCODEif_icmpeq(l2,NULL));
+    } else if (is_if_icmpgt(*c,&l1)) {
+      return replace_modified(c,9,makeCODEif_icmpgt(l2,NULL));
+    } else if (is_if_icmplt(*c,&l1)) {
+      return replace_modified(c,9,makeCODEif_icmplt(l2,NULL));
+    } else if (is_if_icmple(*c,&l1)) {
+      return replace_modified(c,9,makeCODEif_icmple(l2,NULL));
+    } else if (is_if_icmpge(*c,&l1)) {
+      return replace_modified(c,9,makeCODEif_icmpge(l2,NULL));
+    } else if (is_if_icmpne(*c,&l1)) {
+      return replace_modified(c,9,makeCODEif_icmpne(l2,NULL));
+    }
+  } else if (is_if(c,&l1) &&
+             is_label(nextby(destination(l1),3),&l2) &&
+             is_ifeq(nextby(destination(l1),4),&l3)) {
+    copylabel(l3);
+    if (is_if_icmpeq(*c,&l1)) {
+      return replace_modified(c,8,makeCODEif_icmpne(l3,
+                                  makeCODElabel(l2,NULL)));
+    } else if (is_if_icmpgt(*c,&l1)) {
+      return replace_modified(c,8,makeCODEif_icmple(l3,
+                                  makeCODElabel(l2,NULL)));
+    } else if (is_if_icmplt(*c,&l1)) {
+      return replace_modified(c,8,makeCODEif_icmpge(l3,
+                                  makeCODElabel(l2,NULL)));
+    } else if (is_if_icmple(*c,&l1)) {
+      return replace_modified(c,8,makeCODEif_icmpgt(l3,
+                                  makeCODElabel(l2,NULL)));
+    } else if (is_if_icmpge(*c,&l1)) {
+      return replace_modified(c,8,makeCODEif_icmplt(l3,
+                                  makeCODElabel(l2,NULL)));
+    } else if (is_if_icmpne(*c,&l1)) {
+      return replace_modified(c,8,makeCODEif_icmpeq(l3,
+                                  makeCODElabel(l2,NULL)));
+    }
   }
   return 0;
 }
@@ -528,5 +659,8 @@ int init_patterns()
   ADD_PATTERN(remove_aload_astore);
   ADD_PATTERN(remove_iload_istore);
   ADD_PATTERN(remove_deadlabel);
+  ADD_PATTERN(simplify_if_stmt1);
+  ADD_PATTERN(simplify_if_stmt2);
+  ADD_PATTERN(simplify_if_stmt3);
   return 1;
 }
