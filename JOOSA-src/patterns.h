@@ -107,6 +107,30 @@ int simplify_goto_goto(CODE **c)
  * Group comp520-2016-14's peephole patterns
  *******************************************/
 
+/* 
+ * ldc 0          ldc 1          ldc 2
+ * iload x        iload x        iload x
+ * imul           imul           imul
+ * ------>        ------>        ------>
+ * ldc 0          iload x        iload x
+ *                               dup
+ *                               iadd
+ */
+int simplify_multiplication_left(CODE **c)
+{ int x,k;
+  if (is_ldc_int(*c,&k) && 
+      is_iload(next(*c),&x) && 
+      is_imul(nextby(*c,2))) {
+     if (k==0) return replace(c,3,makeCODEldc_int(0,NULL));
+     else if (k==1) return replace(c,3,makeCODEiload(x,NULL));
+     else if (k==2) return replace(c,3,makeCODEiload(x,
+                                       makeCODEdup(
+                                       makeCODEiadd(NULL))));
+     return 0;
+  }
+  return 0;
+}
+
 /* dup
  * istore x
  * pop
@@ -261,25 +285,31 @@ int simplify_constant_op(CODE **c)
   return 0;
 }
 
-/* ldc 0          ldc 1
- * iadd / isub    imul / idiv
- * ------>        ------>
- * 
+/* iload x        iload x     ldc 0
+ * ldc 0          ldc 1       iload x
+ * iadd / isub    idiv        iadd
+ * ------>        ------>     ------>
+ * iload x        iload x     iload x
  */
-int remove_trivial_op(CODE **c)
-{ int k;
-  if (is_ldc_int(*c,&k)) {
+int simplify_trivial_op(CODE **c)
+{ int x,k;
+  if (is_iload(*c,&x) &&
+      is_ldc_int(next(*c),&k)) {
     if (k == 0) {
-      if (is_iadd(next(*c)) ||
-          is_isub(next(*c))) {
-        return replace_modified(c,2,NULL);
+      if (is_iadd(nextby(*c,2)) ||
+          is_isub(nextby(*c,2))) {
+        return replace(c,3,makeCODEiload(x,NULL));
       }
     } else if (k == 1) {
-      if (is_imul(next(*c)) ||
-          is_idiv(next(*c))) {
-        return replace_modified(c,2,NULL);
+      if (is_idiv(nextby(*c,2))) {
+        return replace(c,3,makeCODEiload(x,NULL));
       }
     }
+  } else if (is_ldc_int(*c,&k) &&
+             is_iload(next(*c),&x) &&
+             is_iadd(nextby(*c,2)) &&
+             k == 0) {
+    return replace(c,3,makeCODEiload(x,NULL));
   }
   return 0;
 }
@@ -291,7 +321,7 @@ int remove_trivial_op(CODE **c)
 int remove_nop(CODE **c)
 { 
   if (is_nop(*c)) {
-    return replace_modified(c,1,NULL);
+    return kill_line(c);
   }
   return 0;
 }
@@ -350,6 +380,19 @@ int remove_iload_istore(CODE **c)
       is_istore(next(*c),&x2) &&
       x1 == x2) {
     return replace_modified(c,2,NULL);
+  }
+  return 0;
+}
+
+/* L:    (with no incoming edges)
+ * --------->
+ * 
+ */
+int remove_deadlabel(CODE **c) {
+  int l;
+  if(is_label(*c,&l) &&
+     deadlabel(l)) {
+    return kill_line(c);
   }
   return 0;
 }
@@ -433,13 +476,6 @@ int remove_iload_istore(CODE **c)
  * swap
  */ 
 
-/* 
- * L:    (with no incoming edges)
- * --------->
- * 
- */
-
-
 /*
 // loop folding?
 // put in loop invariants? (VMs slide 60)
@@ -454,44 +490,6 @@ int remove_iload_istore(CODE **c)
  * --------->
  * 
  */ 
-
-
-
-
-
-/* symmetric version of previous patterns */
-/* 
- * ldc 0          ldc 1          ldc 2
- * iload x        iload x        iload x
- * imul           imul           imul
- * ------>        ------>        ------>
- * ldc 0          iload x        iload x
- *                               dup
- *                               iadd
- */
-
-/* ldc 0
- * iload x
- * iadd
- * ------>
- * iload x
- */
-
-/* ldc k   (0<=k<=127)
- * iload x
- * iadd
- * istore x
- * --------->
- * iinc x k
- */ 
-
-/* 0 + x = x
- * ldc 0
- * iload x
- * iadd
- * ------>
- * iload x
- */
 
 /* would this change anything (with an empty stack)?
  * pop
@@ -517,16 +515,18 @@ int init_patterns()
   ADD_PATTERN(simplify_astore);
   ADD_PATTERN(positive_increment);
   ADD_PATTERN(simplify_goto_goto);
+  ADD_PATTERN(simplify_multiplication_left);
   ADD_PATTERN(simplify_istore);
   ADD_PATTERN(simplify_aload);
   ADD_PATTERN(simplify_iload);
   ADD_PATTERN(simplify_aload_swap_putfield);
   ADD_PATTERN(simplify_constant_op);
-  ADD_PATTERN(remove_trivial_op);
+  ADD_PATTERN(simplify_trivial_op);
   ADD_PATTERN(remove_nop);
   ADD_PATTERN(remove_dup_pop);
   ADD_PATTERN(remove_2_swap);
   ADD_PATTERN(remove_aload_astore);
   ADD_PATTERN(remove_iload_istore);
+  ADD_PATTERN(remove_deadlabel);
   return 1;
 }
