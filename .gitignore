@@ -7,3 +7,5 @@ JOOSA-src/y.tab.h
 # JOOS files
 *.j
 *.class
+*.optdump
+*.dump
