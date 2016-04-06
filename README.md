@@ -26,4 +26,6 @@ awk '{sum += $3} END {print sum}' bench0*/*.size
 ### Run
 As each of the benchmark programs are different, see their respective README files for instructions to run the programs.
 ### Clean
+```
 rm -rf *.class *.j *.optdump *.dump *.size *~
+```
