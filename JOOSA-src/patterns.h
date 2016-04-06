@@ -438,18 +438,13 @@ int simplify_if_stmt1(CODE **c)
  * if (i != 0 && i != 4 && i != 8 ) {}
  */
 int simplify_if_stmt2(CODE **c)
-{ int l1,l2,l3,next_if;
+{ int l1,l2,l3;
   if (is_if(c,&l1) &&
       is_dup(nextby(destination(l1),3)) &&
       is_ifeq(nextby(destination(l1),4),&l2)) {
-    next_if = 1;
-    while (next_if) {
-      if (is_dup(next(destination(l2))) &&
+    while (is_dup(next(destination(l2))) &&
           is_ifeq(nextby(destination(l2),2),&l2)) {
-        next_if = 1;
-      } else {
-        next_if = 0;
-      }
+      /* Iterate to get the last label and update l2 */
     }
     if (is_ifeq(next(destination(l2)),&l3)) {
       copylabel(l3);
@@ -475,18 +470,13 @@ int simplify_if_stmt2(CODE **c)
  * if (i == 0 || i == 4 || i == 8 ) {}
  */
 int simplify_if_stmt3(CODE **c)
-{ int l1,l2,l3,next_if;
+{ int l1,l2,l3;
   if (is_if(c,&l1) &&
       is_dup(nextby(destination(l1),3)) &&
       is_ifne(nextby(destination(l1),4),&l2)) {
-    next_if = 1;
-    while (next_if) {
-      if (is_dup(next(destination(l2))) &&
+    while (is_dup(next(destination(l2))) &&
           is_ifne(nextby(destination(l2),2),&l2)) {
-        next_if = 1;
-      } else {
-        next_if = 0;
-      }
+      /* Iterate to get the last label and update l2 */
     }
     copylabel(l2);
     if (is_if_icmpeq(*c,&l1)) {
