@@ -1,29 +1,32 @@
-Peephole Contest
-================
-
-Installation
------------
-
-Set environment variable `PEEPDIR` to refer to this directory permanently. Then
-
+# Peephole Contest
+## Installation
+Set environment variable `PEEPDIR` to refer to this directory permanently.
+Go to `JOOSA-src/` directory, then
 ```
 cd JOOSA-src/
 make
 ```
-
-Usage
------
-
+## Usage
+### Make
 Example:
+Go to `PeepholeBenchmarks/bench01/` directory, then
 ```
-cd PeepholeBenchmarks/bench01/
 $PEEPDIR/joosc *.java
 ```
 or the following to enable optimization
 ```
 $PEEPDIR/joosc -O *.java
 ```
-`*.j` are the output Jasmin files that we analyze. To check the size of the Jasmin files in bytes, use
+For `bench03`, use the following:
 ```
-du -b *.j
+$PEEPDIR.joosc -O *.java *.joos
 ```
+### Compute Size
+Go to `PeepholeBenchmarks/` directory, then
+```
+awk '{sum += $3} END {print sum}' bench0*/*.size
+```
+### Run
+As each benchmark program is different, see their README for instructions to run the program.
+### Clean
+rm -rf *.class *.j *.optdump *.dump *.size *~

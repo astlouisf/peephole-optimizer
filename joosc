@@ -18,10 +18,12 @@ if ( { $PEEPDIR/joos $* } ) then
       endif
     endif
   end
-  echo "----- Method code sizes ----"
+  # echo "----- Method code sizes ----"
   if ( $1 == "-O" ) then
-    grep code_length *.optdump
+    # grep code_length *.optdump
+    grep code_length *.optdump > optdump.size
   else
-    grep code_length *.dump
+    # grep code_length *.dump
+    grep code_length *.dump > dump.size
   endif
 endif
