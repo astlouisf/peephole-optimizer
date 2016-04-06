@@ -213,6 +213,7 @@ int simplify_aload_swap_putfield(CODE **c)
  */
 int simplify_constant_op(CODE **c)
 { int x,y,k;
+  k = -1;
   if (is_ldc_int(*c,&x) &&
       is_ineg(next(*c)) &&
       is_ldc_int(nextby(*c,2),&y) &&
