@@ -192,7 +192,7 @@ int simplify_iload(CODE **c)
  * putfield k
  */
 int simplify_aload_swap_putfield(CODE **c)
-{ int x; char* k;
+{ int x; char *k;
   if (is_dup(*c) &&
       is_aload(next(*c),&x) &&
       is_swap(nextby(*c,2)) &&
@@ -429,6 +429,10 @@ int simplify_if_stmt1(CODE **c)
       return replace_modified(c,7,makeCODEif_icmplt(l2,NULL));
     } else if (is_if_icmpne(*c,&l1)) {
       return replace_modified(c,7,makeCODEif_icmpeq(l2,NULL));
+    } else if (is_if_acmpeq(*c,&l1)) {
+      return replace_modified(c,7,makeCODEif_acmpne(l2,NULL));
+    } else if (is_if_acmpne(*c,&l1)) {
+      return replace_modified(c,7,makeCODEif_acmpeq(l2,NULL));
     }
   }
   return 0;
@@ -460,6 +464,10 @@ int simplify_if_stmt2(CODE **c)
         return replace_modified(c,9,makeCODEif_icmplt(l3,NULL));
       } else if (is_if_icmpne(*c,&l1)) {
         return replace_modified(c,9,makeCODEif_icmpeq(l3,NULL));
+      } else if (is_if_acmpeq(*c,&l1)) {
+        return replace_modified(c,9,makeCODEif_acmpne(l3,NULL));
+      } else if (is_if_acmpne(*c,&l1)) {
+        return replace_modified(c,9,makeCODEif_acmpeq(l3,NULL));
       }
     }
   }
@@ -491,6 +499,10 @@ int simplify_if_stmt3(CODE **c)
       return replace_modified(c,9,makeCODEif_icmpge(l2,NULL));
     } else if (is_if_icmpne(*c,&l1)) {
       return replace_modified(c,9,makeCODEif_icmpne(l2,NULL));
+    } else if (is_if_acmpeq(*c,&l1)) {
+      return replace_modified(c,9,makeCODEif_acmpne(l2,NULL));
+    } else if (is_if_acmpne(*c,&l1)) {
+      return replace_modified(c,9,makeCODEif_acmpeq(l2,NULL));
     }
   } else if (is_if(c,&l1) &&
              is_label(nextby(destination(l1),3),&l2) &&
@@ -514,6 +526,65 @@ int simplify_if_stmt3(CODE **c)
     } else if (is_if_icmpne(*c,&l1)) {
       return replace_modified(c,8,makeCODEif_icmpeq(l3,
                                   makeCODElabel(l2,NULL)));
+    } else if (is_if_acmpeq(*c,&l1)) {
+      return replace_modified(c,8,makeCODEif_acmpne(l3,
+                                  makeCODElabel(l2,NULL)));
+    } else if (is_if_acmpne(*c,&l1)) {
+      return replace_modified(c,8,makeCODEif_acmpeq(l3,
+                                  makeCODElabel(l2,NULL)));
+    }
+  }
+  return 0;
+}
+
+/* Simplify the following if statement since
+ * the enclosing bodies assign the same thing.
+ *
+ * if (resolver == "backtrack" ) {
+ *   ss = new BacktrackSolver() ;
+ * } else if ( resolver == "bruteforce") {
+ *   ss = new BacktrackSolver() ;
+ * } else {
+ *   ss = new BacktrackSolver() ;
+ * }
+ * --------->
+ * ss = new BacktrackSolver() ;
+ */
+int simplify_if_stmt4(CODE **c)
+{ int a,l1,l2,l3,k1,k2,lines; char *b,*x1,*x2,*y1,*y2;
+  if (is_aload(*c,&a) &&
+      is_ldc_string(next(*c),&b) &&
+      is_if_acmpne(nextby(*c,2),&l1) &&
+      is_new(nextby(*c,3),&x1) &&
+      is_dup(nextby(*c,4)) &&
+      is_invokenonvirtual(nextby(*c,5),&y1) &&
+      is_astore(nextby(*c,6),&k1) &&
+      is_goto(nextby(*c,7),&l2)) {
+    while (is_if_acmpne(nextby(destination(l1),3),&l1)) {
+      if (is_new(nextby(destination(l1),4),&x2) &&
+          is_dup(nextby(destination(l1),5)) &&
+          is_invokenonvirtual(nextby(destination(l1),6),&y2) &&
+          is_astore(nextby(destination(l1),7),&k2) &&
+          (k1!=k2 || *x1!=*x2 || *y1!=*y2)) {
+        return 0;
+      }
+    }
+    if (is_new(next(destination(l1)),&x2) &&
+        is_dup(nextby(destination(l1),2)) &&
+        is_invokenonvirtual(nextby(destination(l1),3),&y2) &&
+        is_astore(nextby(destination(l1),4),&k2)) {
+      if (k1!=k2 || *x1!=*x2 || *y1!=*y2) {
+        return 0;
+      } else {
+        lines = 1;
+        while (!is_label(nextby(*c,lines),&l3) || l2!=l3) {
+          lines++;
+        }
+        return replace_modified(c,lines,makeCODEnew(x1,
+                                        makeCODEdup(
+                                        makeCODEinvokenonvirtual(y1,
+                                        makeCODEastore(k1,NULL)))));
+      }
     }
   }
   return 0;
@@ -653,5 +724,6 @@ int init_patterns()
   ADD_PATTERN(simplify_if_stmt1);
   ADD_PATTERN(simplify_if_stmt2);
   ADD_PATTERN(simplify_if_stmt3);
+  ADD_PATTERN(simplify_if_stmt4);
   return 1;
 }
