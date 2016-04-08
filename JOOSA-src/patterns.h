@@ -181,27 +181,25 @@ int simplify_iload(CODE **c)
   return 0;
 }
 
-/* iload x
- * dup
- * aload y
+/* dup
+ * aload x
  * swap
  * putfield k
  * pop
  * -------->
- * aload y
- * iload x
+ * aload x
+ * swap
  * putfield k
  */
-int simplify_putfield(CODE **c)
-{ int x,y; char *k;
-  if (is_iload(*c,&x) &&
-      is_dup(next(*c)) &&
-      is_aload(nextby(*c,2),&y) &&
-      is_swap(nextby(*c,3)) &&
-      is_putfield(nextby(*c,4),&k) &&
-      is_pop(nextby(*c,5))) {
-     return replace(c,6,makeCODEaload(y,
-                        makeCODEiload(x,
+int simplify_aload_swap_putfield(CODE **c)
+{ int x; char *k;
+  if (is_dup(*c) &&
+      is_aload(next(*c),&x) &&
+      is_swap(nextby(*c,2)) &&
+      is_putfield(nextby(*c,3),&k) &&
+      is_pop(nextby(*c,4))) {
+     return replace(c,5,makeCODEaload(x,
+                        makeCODEswap(
                         makeCODEputfield(k,NULL))));
   }
   return 0;
@@ -714,7 +712,7 @@ int init_patterns()
   ADD_PATTERN(simplify_istore);
   ADD_PATTERN(simplify_aload);
   ADD_PATTERN(simplify_iload);
-  ADD_PATTERN(simplify_putfield);
+  ADD_PATTERN(simplify_aload_swap_putfield);
   ADD_PATTERN(simplify_constant_op);
   ADD_PATTERN(simplify_trivial_op);
   ADD_PATTERN(remove_nop);
