@@ -6,6 +6,26 @@
  * - Cheuk Chuen Siow
  ******************************/
 
+enum iMATH {
+  IADD = 0x1,
+  ISUB = 0x2,
+  IMUL = 0x4,
+  IDIV = 0x8
+};
+
+
+int is_iMath(CODE *c, unsigned int ops)
+{
+  if (ops & IADD) { return is_iadd(c); }
+  if (ops & ISUB) { return is_isub(c); }
+  if (ops & IMUL) { return is_imul(c); }
+  if (ops & IDIV) { return is_idiv(c); }
+  return 0;
+}
+
+
+
+
 /*
  * JOOS is Copyright (C) 1997 Laurie Hendren & Michael I. Schwartzbach
  *
@@ -26,7 +46,6 @@
  *                               dup
  *                               iadd
  */
-
 int simplify_multiplication_right(CODE **c)
 { int x,k;
   if (is_iload(*c,&x) && 
@@ -213,104 +232,58 @@ int simplify_aload_swap_putfield(CODE **c)
  */
 int simplify_constant_op(CODE **c)
 { int x,y,k;
-  k = -1;
-  if (is_ldc_int(*c,&x) &&
-      is_ineg(next(*c)) &&
-      is_ldc_int(nextby(*c,2),&y) &&
-      is_ineg(nextby(*c,3))) {
-    if (is_iadd(nextby(*c,4))) {
-      k = (-x)+(-y);
-    } else if (is_isub(nextby(*c,4))) {
-      k = (-x)-(-y);
-    } else if (is_imul(nextby(*c,4))) {
-      k = (-x)*(-y);
-    } else if (is_idiv(nextby(*c,4))) {
-      k = (-x)/(-y);
-    } else if (is_irem(nextby(*c,4))) {
-      k = (-x)%(-y);
-    }
-    if (k >= 0) {
-      return replace(c,5,makeCODEldc_int(k,NULL));
-    }
-  } else if (is_ldc_int(*c,&x) &&
-      is_ldc_int(next(*c),&y) &&
-      is_ineg(nextby(*c,2))) {
-    if (is_iadd(nextby(*c,3))) {
-      k = x+(-y);
-    } else if (is_isub(nextby(*c,3))) {
-      k = x-(-y);
-    } else if (is_imul(nextby(*c,3))) {
-      k = x*(-y);
-    } else if (is_idiv(nextby(*c,3))) {
-      k = x/(-y);
-    } else if (is_irem(nextby(*c,3))) {
-      k = x%(-y);
-    }
-    if (k >= 0) {
-      return replace(c,4,makeCODEldc_int(k,NULL));
-    }
-  } else if (is_ldc_int(*c,&x) &&
-      is_ineg(next(*c)) &&
-      is_ldc_int(nextby(*c,2),&y)) {
-    if (is_iadd(nextby(*c,3))) {
-      k = (-x)+y;
-    } else if (is_isub(nextby(*c,3))) {
-      k = (-x)-y;
-    } else if (is_imul(nextby(*c,3))) {
-      k = (-x)*y;
-    } else if (is_idiv(nextby(*c,3))) {
-      k = (-x)/y;
-    } else if (is_irem(nextby(*c,3))) {
-      k = (-x)%y;
-    }
-    if (k >= 0) {
-      return replace(c,4,makeCODEldc_int(k,NULL));
-    }
-  } else if (is_ldc_int(*c,&x) &&
-      is_ldc_int(next(*c),&y)) {
-    if (is_iadd(nextby(*c,2))) {
-      k = x+y;
-    } else if (is_isub(nextby(*c,2))) {
-      k = x-y;
-    } else if (is_imul(nextby(*c,2))) {
-      k = x*y;
-    } else if (is_idiv(nextby(*c,2))) {
-      k = x/y;
-    } else if (is_irem(nextby(*c,2))) {
-      k = x%y;
-    }
-    if (k >= 0) {
-      return replace(c,3,makeCODEldc_int(k,NULL));
-    }
+  int num_neg = 0;
+  int xneg, yneg;
+
+  if (!is_ldc_int(*c, &x))
+    return 0;
+  if ((xneg = is_ineg(next(*c))))
+    num_neg++;
+  if (!is_ldc_int(nextby(*c, 1 + num_neg), &y))
+    return 0;
+  if ((yneg = is_ineg(nextby(*c, 2 + num_neg))))
+    num_neg++;
+
+  if      (is_iadd(nextby(*c,2+num_neg))) { k = (xneg?-x:x)+(yneg?-y:y); }
+  else if (is_isub(nextby(*c,2+num_neg))) { k = (xneg?-x:x)-(yneg?-y:y); }
+  else if (is_imul(nextby(*c,2+num_neg))) { k = (xneg?-x:x)*(yneg?-y:y); }
+  else if (y == 0) return 0; /* Division or Modulo by zero should fail at runtime */
+                             /* and not crash the compiler. */
+  else if (is_idiv(nextby(*c,2+num_neg))) { k = (xneg?-x:x)/(yneg?-y:y); }
+  else if (is_irem(nextby(*c,2+num_neg))) { k = (xneg?-x:x)%(yneg?-y:y); }
+  else return 0; /* Not a valid pattern */
+
+  if (k >= 0) {
+    return replace(c,3+num_neg,makeCODEldc_int(k,NULL));
+  } else {
+    /* Should take less instructions even if we add `ineg`. */
+    return replace(c,3+num_neg,makeCODEineg(makeCODEldc_int(k,NULL)));
   }
-  return 0;
 }
 
-/* iload x        iload x     ldc 0
- * ldc 0          ldc 1       iload x
- * iadd / isub    idiv        iadd
- * ------>        ------>     ------>
- * iload x        iload x     iload x
+
+
+/* iload x        iload x       ldc 0     ldc 1
+ * ldc 0          ldc 1         load x    iload x
+ * iadd / isub    idiv / imul   iadd      imul
+ * ------>        ------>       ------>   -------->
+ * iload x        iload x       iload x   iload x
  */
 int simplify_trivial_op(CODE **c)
 { int x,k;
-  if (is_iload(*c,&x) &&
-      is_ldc_int(next(*c),&k)) {
-    if (k == 0) {
-      if (is_iadd(nextby(*c,2)) ||
-          is_isub(nextby(*c,2))) {
-        return replace(c,3,makeCODEiload(x,NULL));
-      }
-    } else if (k == 1) {
-      if (is_idiv(nextby(*c,2))) {
-        return replace(c,3,makeCODEiload(x,NULL));
-      }
-    }
-  } else if (is_ldc_int(*c,&k) &&
-             is_iload(next(*c),&x) &&
-             is_iadd(nextby(*c,2)) &&
-             k == 0) {
-    return replace(c,3,makeCODEiload(x,NULL));
+  CODE *c1, *c2;
+  c1 = next(*c);
+  c2 = nextby(*c, 2);
+  if ((is_iload(*c,&x) &&
+       is_ldc_int(c1,&k) &&
+       ((k == 0 && is_iMath(c2, IADD|ISUB)) ||
+        (k == 1 && is_iMath(c2, IDIV|ISUB)))) ||
+
+      (is_ldc_int(*c,&k) &&
+       is_iload(c1,&x) &&
+       ((k == 0 && is_iadd(c2)) || (k == 1 && is_imul(c2)))))
+  {
+      return replace(c,3,makeCODEiload(x,NULL));
   }
   return 0;
 }
