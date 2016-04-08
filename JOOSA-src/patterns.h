@@ -361,7 +361,7 @@ int remove_2_swap(CODE **c)
  * 
  */
 int remove_aload_astore(CODE **c)
-{ int x1, x2;
+{ int x1,x2;
   if (is_aload(*c,&x1) &&
       is_astore(next(*c),&x2) &&
       x1 == x2) {
@@ -590,6 +590,46 @@ int simplify_if_stmt4(CODE **c)
   return 0;
 }
 
+/* iload x
+ * aload y
+ * swap
+ * --------->
+ * aload y
+ * iload x
+ */ 
+int simplify_swap1(CODE **c)
+{ int x,y;
+  if (is_iload(*c,&x) &&
+      is_aload(next(*c),&y) &&
+      is_swap(nextby(*c,2))) {
+    return replace_modified(c,3,makeCODEaload(y,
+                                makeCODEiload(x,NULL)));
+  }
+  return 0;
+}
+
+/* ldc x
+ * invokenonvirtual k
+ * aload y
+ * swap
+ * --------->
+ * aload y
+ * ldc x
+ * invokenonvirtual k
+ */ 
+int simplify_swap2(CODE **c)
+{ int x,y; char *k;
+  if (is_ldc_int(*c,&x) &&
+      is_invokenonvirtual(next(*c),&k) &&
+      is_aload(nextby(*c,2),&y) &&
+      is_swap(nextby(*c,3))) {
+    return replace_modified(c,4,makeCODEaload(y,
+                                makeCODEldc_int(x,
+                                makeCODEinvokenonvirtual(k,NULL))));
+  }
+  return 0;
+}
+
 
 
 /* also do this for astore and for _k (does this save memory?)
@@ -647,15 +687,6 @@ int simplify_if_stmt4(CODE **c)
  * astore k
  * dup
  * getfield ...
- */ 
-
-/* repeat this for loads (but with swap at the end) and with istores and iloads
- * swap
- * astore k
- * astore m
- * --------->
- * astore m
- * astore k
  */ 
 
 /* THIS MIGHT NOT BE SOUND, ONLY IMPLEMENT THIS IF DUP+SWAP < ALOAD K
@@ -725,5 +756,7 @@ int init_patterns()
   ADD_PATTERN(simplify_if_stmt2);
   ADD_PATTERN(simplify_if_stmt3);
   ADD_PATTERN(simplify_if_stmt4);
+  ADD_PATTERN(simplify_swap1);
+  ADD_PATTERN(simplify_swap2);
   return 1;
 }
