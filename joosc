@@ -21,9 +21,9 @@ if ( { $PEEPDIR/joos $* } ) then
   # echo "----- Method code sizes ----"
   if ( $1 == "-O" ) then
     # grep code_length *.optdump
-    grep code_length *.optdump > optdump.size
+    grep -a code_length *.optdump > optdump.size
   else
     # grep code_length *.dump
-    grep code_length *.dump > dump.size
+    grep -a code_length *.dump > dump.size
   endif
 endif
