@@ -199,6 +199,9 @@ int simplify_goto_goto(CODE **c)
  *                               dup
  *                               iadd
  */
+/* Soundness: each of these patterns is an arithmetic invariant */
+/* the first two strictly decrease the number of instructions */
+/* the third has the same number of instructions, but strictly decreases the number of bytes */
 int simplify_multiplication_left(CODE **c)
 { int x,k;
   if (is_ldc_int(*c,&k) && 
@@ -220,6 +223,8 @@ int simplify_multiplication_left(CODE **c)
  * -------->
  * istore x
  */
+/* Soundness: istore already pops the stack */
+/* the number of instructions strictly decreases */
 int simplify_istore(CODE **c)
 { int x;
   if (is_dup(*c) &&
@@ -236,6 +241,8 @@ int simplify_istore(CODE **c)
  * aload x
  * dup
  */
+/* Soundness: dup does the same thing as a second aload in  less memory (assuming what's to be loaded is on the top of the stack) */
+/* the number of bytes strictly decreases */
 int simplify_aload(CODE **c)
 { int x1,x2;
   if (is_aload(*c,&x1) &&
@@ -254,6 +261,8 @@ int simplify_aload(CODE **c)
  * dup
  * astore x
  */
+/* Soundness: a load isn't necessary if the object to be loaded is already on the stack (we counter the pop from the store with a dup) */
+/* the number of bytes strictly decreases */
 int optimize_astore(CODE **c)
 { int x, y;
   if (!is_astore(*c, &x))      { return 0; }
@@ -270,6 +279,8 @@ int optimize_astore(CODE **c)
  * dup
  * istore x
  */
+/* Soundness: same reasoning as last pattern, but with integers */
+/* the number of bytes strictly decreases */
 int optimize_istore(CODE **c)
 { int x, y;
   if (!is_istore(*c, &x))      { return 0; }
@@ -303,6 +314,7 @@ int optimize_istore(CODE **c)
  * iload x
  * dup
  */
+/* Soundness: a dup is fewer bytes, and results in the same thing thing as a repeated load */
 int simplify_iload(CODE **c)
 { int x1,x2;
   if (is_iload(*c,&x1) &&
@@ -314,7 +326,6 @@ int simplify_iload(CODE **c)
   return 0;
 }
 
-/* int simplify_aload_getfield_aload_swap(CODE **c) {return 0;} */
 /* aload x
  * getfield
  * aload x
@@ -324,6 +335,7 @@ int simplify_iload(CODE **c)
  * dup
  * getfield
  */
+/* Soundness: a dup is fewer bytes, and results in the same thing thing as a repeated load; the swap isn't needed if we swap the instructions here */
 int simplify_aload_getfield_aload_swap(CODE **c)
 { int x; char *y; int z;
   if (is_aload(*c,&x) &&
@@ -331,7 +343,7 @@ int simplify_aload_getfield_aload_swap(CODE **c)
       is_aload(next(next(*c)),&z) &&
       is_swap(next(next(next(*c)))) &&
       x == z) {
-     return replace(c,5,makeCODEaload(x,
+     return replace(c,4,makeCODEaload(x,
                         makeCODEdup(
                         makeCODEgetfield(y,NULL))));
   }
@@ -543,6 +555,49 @@ int remove_deadlabel(CODE **c)
   }
   return 0;
 }
+
+/* ireturn
+ * L:
+ * --------->
+ * ireturn
+ */
+int simplify_ireturn_label(CODE **c)
+{ int l;
+  if(is_ireturn(*c) &&
+     is_goto(next(*c),&l)) {
+    return replace_modified(c,2,makeCODEireturn(NULL));
+  }
+  return 0;
+}
+
+/* areturn
+ * L:
+ * --------->
+ * areturn
+ */
+int simplify_areturn_label(CODE **c)
+{ int l;
+  if(is_areturn(*c) &&
+     is_goto(next(*c),&l)) {
+    return replace_modified(c,2,makeCODEareturn(NULL));
+  }
+  return 0;
+}
+
+/* /\* return */
+/*  * L: */
+/*  * ---------> */
+/*  * return */
+/*  *\/ */
+/* int simplify_return_label(CODE **c) */
+/* { int l; */
+/*   if(is_areturn(*c) && */
+/*      is_goto(next(*c),&l)) { */
+/*     return replace_modified(c,2,makeCODEreturn(NULL)); */
+/*   } */
+/*   return 0; */
+/* } */
+
 
 /* if_icmpeq true_1
  * iconst_0
@@ -1041,7 +1096,7 @@ int point_furthest_label(CODE** c)
  * --------->    --------->
  * if_icmpeq L   if_icmpne L
  */ 
-int optimize_isub_branching(CODE** c)
+int optimize_isub_branching(CODE **c)
 { int L;
   if (!is_isub(*c)) { return 0; }
 
@@ -1056,20 +1111,45 @@ int optimize_isub_branching(CODE** c)
   return 0;
 }
 
-
 /* aconst_null
  * ifnull L
  * --------->
  * goto L
  */
-int optimize_null_constant_branching(CODE** c)
+int optimize_null_constant_branching(CODE **c)
 { int L;
   if (!is_aconst_null(*c))      { return 0; }
   if (!is_ifnull(next(*c), &L)) { return 0; }
   return replace_modified(c,2,makeCODEgoto(L, NULL));
 }
 
- 
+/* ldc_string a
+ * dup
+ * ifnull x
+ * goto y
+ * label j
+ * pop
+ * ldc_string b
+ * label k
+ * --------->
+ * ldc_string a
+ */
+int simplify_string_constant(CODE **c)
+{ int x,y,j,k; char *a,*b;
+  if (is_ldc_string(*c,&a) &&
+      is_dup(next(*c)) &&
+      is_ifnull(nextby(*c,2),&x) &&
+      is_goto(nextby(*c,3),&y) &&
+      is_label(nextby(*c,4),&j) &&
+      is_pop(nextby(*c,5)) &&
+      is_ldc_string(nextby(*c,6),&b) &&
+      is_label(nextby(*c,7),&k)) {
+    return replace_modified(c,8,makeCODEldc_string(a,NULL));
+  }
+  return 0;
+}
+
+
 
 /* astore k
  * getfield ...
@@ -1165,5 +1245,8 @@ int init_patterns()
   /* ADD_PATTERN(simplify_const_load_swap); */
   ADD_PATTERN(precompute_simple_swap);
   ADD_PATTERN(simplify_aload_getfield_aload_swap);
+  ADD_PATTERN(simplify_ireturn_label);
+  ADD_PATTERN(simplify_areturn_label);
+  ADD_PATTERN(simplify_string_constant);
   return 1;
 }
