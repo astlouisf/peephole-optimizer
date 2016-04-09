@@ -787,6 +787,8 @@ int unused_store_to_pop(CODE **c)
   do {
     cn = next(cn);
   } while (cn != NULL &&
+          !is_if(&cn, &y) &&
+          !is_goto(cn, &y) &&
           !(is_iload(cn, &y) && x == y) &&
           !(is_aload(cn, &y) && x == y) &&
           !(is_astore(cn, &y) && x == y) && 
@@ -949,15 +951,15 @@ int init_patterns()
   ADD_PATTERN(unused_store_to_pop);
   ADD_PATTERN(remove_popped_computation);
 
-  ADD_PATTERN(remove_dup_pop);
+/*  ADD_PATTERN(remove_dup_pop); remove_popped_computation handles this */ 
   ADD_PATTERN(remove_2_swap);
   ADD_PATTERN(remove_aload_astore);
   ADD_PATTERN(remove_iload_istore);
   ADD_PATTERN(remove_deadlabel);
   ADD_PATTERN(simplify_if_stmt1);
   ADD_PATTERN(simplify_if_stmt2);
-  ADD_PATTERN(simplify_if_stmt3);
-/*  ADD_PATTERN(simplify_if_stmt4); */
+/*  ADD_PATTERN(simplify_if_stmt3); */
+  ADD_PATTERN(simplify_if_stmt4);
   ADD_PATTERN(simplify_swap1);
   ADD_PATTERN(simplify_swap2);
   ADD_PATTERN(optimize_null_constant_branching);
