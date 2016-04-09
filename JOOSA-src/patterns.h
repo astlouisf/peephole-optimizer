@@ -189,6 +189,9 @@ int is_iMath(CODE *c, unsigned int ops)
  *                               dup
  *                               iadd
  */
+/* Soundness: each of these patterns is an arithmetic invariant */
+/* the first two strictly decrease the number of instructions */
+/* the third has the same number of instructions, but strictly decreases the number of bytes */
 int simplify_multiplication_left(CODE **c)
 { int x,k;
   if (is_ldc_int(*c,&k) && 
@@ -210,6 +213,8 @@ int simplify_multiplication_left(CODE **c)
  * -------->
  * istore x
  */
+/* Soundness: istore already pops the stack */
+/* the number of instructions strictly decreases */
 int simplify_istore(CODE **c)
 { int x;
   if (is_dup(*c) &&
@@ -226,6 +231,8 @@ int simplify_istore(CODE **c)
  * aload x
  * dup
  */
+/* Soundness: dup does the same thing as a second aload in  less memory (assuming what's to be loaded is on the top of the stack) */
+/* the number of bytes strictly decreases */
 int simplify_aload(CODE **c)
 { int x1,x2;
   if (is_aload(*c,&x1) &&
@@ -244,6 +251,8 @@ int simplify_aload(CODE **c)
  * dup
  * astore x
  */
+/* Soundness: a load isn't necessary if the object to be loaded is already on the stack (we counter the pop from the store with a dup) */
+/* the number of bytes strictly decreases */
 int optimize_astore(CODE **c)
 { int x, y;
   if (!is_astore(*c, &x))      { return 0; }
@@ -260,6 +269,8 @@ int optimize_astore(CODE **c)
  * dup
  * istore x
  */
+/* Soundness: same reasoning as last pattern, but with integers */
+/* the number of bytes strictly decreases */
 int optimize_istore(CODE **c)
 { int x, y;
   if (!is_istore(*c, &x))      { return 0; }
@@ -293,6 +304,7 @@ int optimize_istore(CODE **c)
  * iload x
  * dup
  */
+/* Soundness: a dup is fewer bytes, and results in the same thing thing as a repeated load */
 int simplify_iload(CODE **c)
 { int x1,x2;
   if (is_iload(*c,&x1) &&
@@ -304,7 +316,6 @@ int simplify_iload(CODE **c)
   return 0;
 }
 
-/* int simplify_aload_getfield_aload_swap(CODE **c) {return 0;} */
 /* aload x
  * getfield
  * aload x
@@ -314,6 +325,7 @@ int simplify_iload(CODE **c)
  * dup
  * getfield
  */
+/* Soundness: a dup is fewer bytes, and results in the same thing thing as a repeated load; the swap isn't needed if we swap the instructions here */
 int simplify_aload_getfield_aload_swap(CODE **c)
 { int x; char *y; int z;
   if (is_aload(*c,&x) &&
