@@ -591,14 +591,18 @@ int simplify_swap1(CODE **c)
  * invokenonvirtual k
  */ 
 int simplify_swap2(CODE **c)
-{ int x,y; char *k;
-  if (is_ldc_int(*c,&x) &&
-      is_invokenonvirtual(next(*c),&k) &&
-      is_aload(nextby(*c,2),&y) &&
-      is_swap(nextby(*c,3))) {
-    return replace_modified(c,4,makeCODEaload(y,
+{ int x,y; char *a,*b;
+  if (is_new(*c,&a) &&
+      is_dup(next(*c)) &&
+      is_ldc_int(nextby(*c,2),&x) &&
+      is_invokenonvirtual(nextby(*c,3),&b) &&
+      is_aload(nextby(*c,4),&y) &&
+      is_swap(nextby(*c,5))) {
+    return replace_modified(c,6,makeCODEaload(y,
+                                makeCODEnew(a,
+                                makeCODEdup(
                                 makeCODEldc_int(x,
-                                makeCODEinvokenonvirtual(k,NULL))));
+                                makeCODEinvokenonvirtual(b,NULL))))));
   }
   return 0;
 }
@@ -730,6 +734,6 @@ int init_patterns()
   /* ADD_PATTERN(simplify_if_stmt3); */
   ADD_PATTERN(simplify_if_stmt4);
   ADD_PATTERN(simplify_swap1);
-  /* ADD_PATTERN(simplify_swap2); */
+  ADD_PATTERN(simplify_swap2);
   return 1;
 }
