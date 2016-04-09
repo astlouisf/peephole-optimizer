@@ -492,10 +492,18 @@ int remove_deadlabel(CODE **c)
  * stop_0:
  */
 int simplify_if_stmt1(CODE **c)
-{ int l1,l2,l3;
+{ int l1,l2,l3,i; CODE *c1;
   if (is_if(c,&l1) &&
       is_label(nextby(destination(l1),2), &l3) &&
       is_ifeq(nextby(destination(l1),3), &l2)) {
+    /* Make sure the nodes are visited before being replaced 
+       for correct stack height calculation */
+    for( i = 0; i < 7; i = i + 1 ) {
+      c1 = nextby(*c, i);
+      if (c1!=NULL && !c1->visited) {
+        c1->visited = 1;
+      }
+    }
     copylabel(l2);
     if (is_if_icmpeq(*c,&l1)) {
       return replace_modified(c,7,makeCODEif_icmpne(l2,NULL));
@@ -522,7 +530,7 @@ int simplify_if_stmt1(CODE **c)
  * if (i != 0 && i != 4 && i != 8 ) {}
  */
 int simplify_if_stmt2(CODE **c)
-{ int l1,l2,l3;
+{ int l1,l2,l3,i; CODE *c1;
   if (is_if(c,&l1) &&
       is_dup(nextby(destination(l1),3)) &&
       is_ifeq(nextby(destination(l1),4),&l2)) {
@@ -531,6 +539,14 @@ int simplify_if_stmt2(CODE **c)
       /* Iterate to get the last label and update l2 */
     }
     if (is_ifeq(next(destination(l2)),&l3)) {
+      /* Make sure the nodes are visited before being replaced 
+         for correct stack height calculation */
+      for( i = 0; i < 9; i = i + 1 ) {
+        c1 = nextby(*c, i);
+        if (c1!=NULL && !c1->visited) {
+          c1->visited = 1;
+        }
+      }
       copylabel(l3);
       if (is_if_icmpeq(*c,&l1)) {
         return replace_modified(c,9,makeCODEif_icmpne(l3,NULL));
@@ -558,13 +574,21 @@ int simplify_if_stmt2(CODE **c)
  * if (i == 0 || i == 4 || i == 8 ) {}
  */
 int simplify_if_stmt3(CODE **c)
-{ int l1,l2,l3;
+{ int l1,l2,l3,i; CODE *c1;
   if (is_if(c,&l1) &&
       is_dup(nextby(destination(l1),3)) &&
       is_ifne(nextby(destination(l1),4),&l2)) {
     while (is_dup(next(destination(l2))) &&
           is_ifne(nextby(destination(l2),2),&l2)) {
       /* Iterate to get the last label and update l2 */
+    }
+    /* Make sure the nodes are visited before being replaced 
+       for correct stack height calculation */
+    for( i = 0; i < 9; i = i + 1 ) {
+      c1 = nextby(*c, i);
+      if (c1!=NULL && !c1->visited) {
+        c1->visited = 1;
+      }
     }
     copylabel(l2);
     if (is_if_icmpeq(*c,&l1)) {
@@ -587,6 +611,14 @@ int simplify_if_stmt3(CODE **c)
   } else if (is_if(c,&l1) &&
              is_label(nextby(destination(l1),3),&l2) &&
              is_ifeq(nextby(destination(l1),4),&l3)) {
+    /* Make sure the nodes are visited before being replaced 
+       for correct stack height calculation */
+    for( i = 0; i < 8; i = i + 1 ) {
+      c1 = nextby(*c, i);
+      if (c1!=NULL && !c1->visited) {
+        c1->visited = 1;
+      }
+    }
     copylabel(l3);
     if (is_if_icmpeq(*c,&l1)) {
       return replace_modified(c,8,makeCODEif_icmpne(l3,
@@ -631,7 +663,7 @@ int simplify_if_stmt3(CODE **c)
  * ss = new BacktrackSolver() ;
  */
 int simplify_if_stmt4(CODE **c)
-{ int a,l1,l2,l3,k1,k2,lines; char *b,*x1,*x2,*y1,*y2;
+{ int a,l1,l2,l3,k1,k2,lines; char *b,*x1,*x2,*y1,*y2; CODE *c1;
   if (is_aload(*c,&a) &&
       is_ldc_string(next(*c),&b) &&
       is_if_acmpne(nextby(*c,2),&l1) &&
@@ -658,6 +690,10 @@ int simplify_if_stmt4(CODE **c)
       } else {
         lines = 1;
         while (!is_label(nextby(*c,lines),&l3) || l2!=l3) {
+          c1 = nextby(*c, lines-1);
+          if (c1!=NULL && !c1->visited) {
+            c1->visited = 1;
+          }
           lines++;
         }
         return replace_modified(c,lines,makeCODEnew(x1,
@@ -958,7 +994,7 @@ int init_patterns()
   ADD_PATTERN(remove_deadlabel);
   ADD_PATTERN(simplify_if_stmt1);
   ADD_PATTERN(simplify_if_stmt2);
-/*  ADD_PATTERN(simplify_if_stmt3); */
+  ADD_PATTERN(simplify_if_stmt3);
   ADD_PATTERN(simplify_if_stmt4);
   ADD_PATTERN(simplify_swap1);
   ADD_PATTERN(simplify_swap2);
