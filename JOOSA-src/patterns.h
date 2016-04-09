@@ -269,20 +269,20 @@ int optimize_istore(CODE **c)
   return 0;
 }
 
-// generalize this??
-/* iconst x
+/* generalize this?? */
+/* ldc x
  * aload y
  * swap
  * --------->
  * aload y
- * iconst x
+ * ldc x
  */
 int simplify_const_load_swap(CODE **c)
 { int x,y;
-  if (is_iconst(*c,&x) &&
+  if (is_ldc_int(*c,&x) &&
       is_aload(next(*c),&y) &&
       is_swap(next(next(*c)))) {
-    return replace(c,3,makeCODEaload(y, makeCODEiconst(x,NULL)));
+    return replace(c,3,makeCODEaload(y, makeCODEldc_int(x,NULL)));
   }
   return 0;
 }
