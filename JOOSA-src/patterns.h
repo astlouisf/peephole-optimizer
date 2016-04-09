@@ -362,29 +362,6 @@ int simplify_aload_swap_putfield(CODE **c)
   return 0;
 }
 
-/* dup
- * ifnull x
- * goto y
- * label z
- * pop
- * -------->
- * ifnull x
- * goto y
- * label z
- */
-int simplify_ifnull_goto_label(CODE **c)
-{ int x,y,z;
-  if (is_dup(*c) &&
-      is_ifnull(next(*c),&x) &&
-      is_goto(nextby(*c,2),&y) &&
-      is_label(nextby(*c,3),&z) &&
-      is_pop(nextby(*c,4))) {
-     return replace(c,5,makeCODEifnull(x,
-                        makeCODEgoto(y,
-                        makeCODElabel(z,NULL))));
-  }
-  return 0;
-}
 
 /*
  * ldc x
@@ -1159,7 +1136,6 @@ int init_patterns()
   ADD_PATTERN(simplify_aload);
   ADD_PATTERN(simplify_iload);
   ADD_PATTERN(simplify_aload_swap_putfield);
-  ADD_PATTERN(simplify_ifnull_goto_label);
   ADD_PATTERN(simplify_constant_op);
   ADD_PATTERN(simplify_trivial_op);
 /*
