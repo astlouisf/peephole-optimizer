@@ -6,6 +6,36 @@
  * - Cheuk Chuen Siow
  ******************************/
 
+/**** Helper functions ****/
+
+enum iMATH {
+  IADD = 0x1,
+  ISUB = 0x2,
+  IMUL = 0x4,
+  IDIV = 0x8
+};
+
+int is_iMath(CODE *c, unsigned int ops)
+{
+  if (ops & IADD) { return is_iadd(c); }
+  if (ops & ISUB) { return is_isub(c); }
+  if (ops & IMUL) { return is_imul(c); }
+  if (ops & IDIV) { return is_idiv(c); }
+  return 0;
+}
+
+/* Make sure the nodes are visited before being replaced 
+   for correct stack height calculation */
+void visit_nodes(CODE *c, int lines)
+{ int i; CODE *c1;
+  for( i = 0; i < lines; i = i + 1 ) {
+    c1 = nextby(c, i);
+    if (c1!=NULL && !c1->visited) {
+      c1->visited = 1;
+    }
+  }
+}
+
 int only_affect_stack(CODE *c)
 {
   if (c == NULL) return 0;
@@ -160,26 +190,6 @@ int simplify_goto_goto(CODE **c)
  * Group comp520-2016-14's peephole patterns
  *******************************************/
 
-/**** Helper functions ****/
-
-enum iMATH {
-  IADD = 0x1,
-  ISUB = 0x2,
-  IMUL = 0x4,
-  IDIV = 0x8
-};
-
-int is_iMath(CODE *c, unsigned int ops)
-{
-  if (ops & IADD) { return is_iadd(c); }
-  if (ops & ISUB) { return is_isub(c); }
-  if (ops & IMUL) { return is_imul(c); }
-  if (ops & IDIV) { return is_idiv(c); }
-  return 0;
-}
-
-/**** Patterns ****/
-
 /* 
  * ldc 0          ldc 1          ldc 2
  * iload x        iload x        iload x
@@ -300,6 +310,30 @@ int simplify_iload(CODE **c)
       x1 == x2) {
     return replace(c,2,makeCODEiload(x1,
                        makeCODEdup(NULL)));
+  }
+  return 0;
+}
+
+/* int simplify_aload_getfield_aload_swap(CODE **c) {return 0;} */
+/* aload x
+ * getfield
+ * aload x
+ * swap
+ * -------->
+ * aload x
+ * dup
+ * getfield
+ */
+int simplify_aload_getfield_aload_swap(CODE **c)
+{ int x; char *y; int z;
+  if (is_aload(*c,&x) &&
+      is_getfield(next(*c),&y) &&
+      is_aload(next(next(*c)),&z) &&
+      is_swap(next(next(next(*c)))) &&
+      x == z) {
+     return replace(c,5,makeCODEaload(x,
+                        makeCODEdup(
+                        makeCODEgetfield(y,NULL))));
   }
   return 0;
 }
@@ -529,22 +563,29 @@ int simplify_if_stmt1(CODE **c)
   if (is_if(c,&l1) &&
       is_label(nextby(destination(l1),2), &l3) &&
       is_ifeq(nextby(destination(l1),3), &l2)) {
-    copylabel(l2);
     if (is_if_icmpeq(*c,&l1)) {
+      copylabel(l2);
       return replace_modified(c,7,makeCODEif_icmpne(l2,NULL));
     } else if (is_if_icmpgt(*c,&l1)) {
+      copylabel(l2);
       return replace_modified(c,7,makeCODEif_icmple(l2,NULL));
     } else if (is_if_icmplt(*c,&l1)) {
+      copylabel(l2);
       return replace_modified(c,7,makeCODEif_icmpge(l2,NULL));
     } else if (is_if_icmple(*c,&l1)) {
+      copylabel(l2);
       return replace_modified(c,7,makeCODEif_icmpgt(l2,NULL));
     } else if (is_if_icmpge(*c,&l1)) {
+      copylabel(l2);
       return replace_modified(c,7,makeCODEif_icmplt(l2,NULL));
     } else if (is_if_icmpne(*c,&l1)) {
+      copylabel(l2);
       return replace_modified(c,7,makeCODEif_icmpeq(l2,NULL));
     } else if (is_if_acmpeq(*c,&l1)) {
+      copylabel(l2);
       return replace_modified(c,7,makeCODEif_acmpne(l2,NULL));
     } else if (is_if_acmpne(*c,&l1)) {
+      copylabel(l2);
       return replace_modified(c,7,makeCODEif_acmpeq(l2,NULL));
     }
   }
@@ -564,22 +605,29 @@ int simplify_if_stmt2(CODE **c)
       /* Iterate to get the last label and update l2 */
     }
     if (is_ifeq(next(destination(l2)),&l3)) {
-      copylabel(l3);
       if (is_if_icmpeq(*c,&l1)) {
+        copylabel(l3);
         return replace_modified(c,9,makeCODEif_icmpne(l3,NULL));
       } else if (is_if_icmpgt(*c,&l1)) {
+        copylabel(l3);
         return replace_modified(c,9,makeCODEif_icmple(l3,NULL));
       } else if (is_if_icmplt(*c,&l1)) {
+        copylabel(l3);
         return replace_modified(c,9,makeCODEif_icmpge(l3,NULL));
       } else if (is_if_icmple(*c,&l1)) {
+        copylabel(l3);
         return replace_modified(c,9,makeCODEif_icmpgt(l3,NULL));
       } else if (is_if_icmpge(*c,&l1)) {
+        copylabel(l3);
         return replace_modified(c,9,makeCODEif_icmplt(l3,NULL));
       } else if (is_if_icmpne(*c,&l1)) {
+        copylabel(l3);
         return replace_modified(c,9,makeCODEif_icmpeq(l3,NULL));
       } else if (is_if_acmpeq(*c,&l1)) {
+        copylabel(l3);
         return replace_modified(c,9,makeCODEif_acmpne(l3,NULL));
       } else if (is_if_acmpne(*c,&l1)) {
+        copylabel(l3);
         return replace_modified(c,9,makeCODEif_acmpeq(l3,NULL));
       }
     }
@@ -599,53 +647,83 @@ int simplify_if_stmt3(CODE **c)
           is_ifne(nextby(destination(l2),2),&l2)) {
       /* Iterate to get the last label and update l2 */
     }
-    copylabel(l2);
     if (is_if_icmpeq(*c,&l1)) {
+      visit_nodes(*c,9);
+      copylabel(l2);
       return replace_modified(c,9,makeCODEif_icmpeq(l2,NULL));
     } else if (is_if_icmpgt(*c,&l1)) {
+      visit_nodes(*c,9);
+      copylabel(l2);
       return replace_modified(c,9,makeCODEif_icmpgt(l2,NULL));
     } else if (is_if_icmplt(*c,&l1)) {
+      visit_nodes(*c,9);
+      copylabel(l2);
       return replace_modified(c,9,makeCODEif_icmplt(l2,NULL));
     } else if (is_if_icmple(*c,&l1)) {
+      visit_nodes(*c,9);
+      copylabel(l2);
       return replace_modified(c,9,makeCODEif_icmple(l2,NULL));
     } else if (is_if_icmpge(*c,&l1)) {
+      visit_nodes(*c,9);
+      copylabel(l2);
       return replace_modified(c,9,makeCODEif_icmpge(l2,NULL));
     } else if (is_if_icmpne(*c,&l1)) {
+      visit_nodes(*c,9);
+      copylabel(l2);
       return replace_modified(c,9,makeCODEif_icmpne(l2,NULL));
-    } else if (is_if_acmpeq(*c,&l1)) {
+    } /*else if (is_if_acmpeq(*c,&l1)) {
+      visit_nodes(*c,9);
+      copylabel(l2);
       return replace_modified(c,9,makeCODEif_acmpne(l2,NULL));
     } else if (is_if_acmpne(*c,&l1)) {
+      visit_nodes(*c,9);
+      copylabel(l2);
       return replace_modified(c,9,makeCODEif_acmpeq(l2,NULL));
-    }
+    }*/
   } else if (is_if(c,&l1) &&
              is_label(nextby(destination(l1),3),&l2) &&
              is_ifeq(nextby(destination(l1),4),&l3)) {
-    copylabel(l3);
     if (is_if_icmpeq(*c,&l1)) {
+      visit_nodes(*c,8);
+      copylabel(l3);
       return replace_modified(c,8,makeCODEif_icmpne(l3,
                                   makeCODElabel(l2,NULL)));
     } else if (is_if_icmpgt(*c,&l1)) {
+      visit_nodes(*c,8);
+      copylabel(l3);
       return replace_modified(c,8,makeCODEif_icmple(l3,
                                   makeCODElabel(l2,NULL)));
     } else if (is_if_icmplt(*c,&l1)) {
+      visit_nodes(*c,8);
+      copylabel(l3);
       return replace_modified(c,8,makeCODEif_icmpge(l3,
                                   makeCODElabel(l2,NULL)));
     } else if (is_if_icmple(*c,&l1)) {
+      visit_nodes(*c,8);
+      copylabel(l3);
       return replace_modified(c,8,makeCODEif_icmpgt(l3,
                                   makeCODElabel(l2,NULL)));
     } else if (is_if_icmpge(*c,&l1)) {
+      visit_nodes(*c,8);
+      copylabel(l3);
       return replace_modified(c,8,makeCODEif_icmplt(l3,
                                   makeCODElabel(l2,NULL)));
     } else if (is_if_icmpne(*c,&l1)) {
+      visit_nodes(*c,8);
+      copylabel(l3);
       return replace_modified(c,8,makeCODEif_icmpeq(l3,
                                   makeCODElabel(l2,NULL)));
-    } else if (is_if_acmpeq(*c,&l1)) {
+    } /*else if (is_if_acmpeq(*c,&l1)) {
+      visit_nodes(*c,8);
+      copylabel(l3);
       return replace_modified(c,8,makeCODEif_acmpne(l3,
                                   makeCODElabel(l2,NULL)));
     } else if (is_if_acmpne(*c,&l1)) {
+      visit_nodes(*c,8);
+      copylabel(l3);
       return replace_modified(c,8,makeCODEif_acmpeq(l3,
                                   makeCODElabel(l2,NULL)));
-    }
+    }*/
   }
   return 0;
 }
@@ -1065,7 +1143,7 @@ int init_patterns()
 */
   ADD_PATTERN(optimize_istore);
   ADD_PATTERN(optimize_astore);
-  ADD_PATTERN(unused_store_to_pop);
+  /*ADD_PATTERN(unused_store_to_pop);*/
   ADD_PATTERN(remove_popped_computation);
 
   ADD_PATTERN(point_furthest_label);
@@ -1078,7 +1156,7 @@ int init_patterns()
   ADD_PATTERN(remove_iload_istore);
   ADD_PATTERN(simplify_if_stmt1);
   ADD_PATTERN(simplify_if_stmt2);
-/*  ADD_PATTERN(simplify_if_stmt3); */
+  ADD_PATTERN(simplify_if_stmt3);
   ADD_PATTERN(simplify_if_stmt4);
   ADD_PATTERN(simplify_swap1);
   ADD_PATTERN(simplify_swap2);
@@ -1086,5 +1164,6 @@ int init_patterns()
   ADD_PATTERN(optimize_isub_branching);
   /* ADD_PATTERN(simplify_const_load_swap); */
   ADD_PATTERN(precompute_simple_swap);
+  ADD_PATTERN(simplify_aload_getfield_aload_swap);
   return 1;
 }
