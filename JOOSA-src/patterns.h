@@ -741,8 +741,8 @@ int precompute_simple_swap(CODE** c)
       !is_aload(c1, &itmp) &&
       !is_ldc_int(c1, &itmp) &&
       !is_ldc_string(c1, &stmp) &&
-      !is_aconst_null(c1) &&
-      !is_getfield(c1, &stmp))
+      !is_aconst_null(c1) /*&&
+      !is_getfield(c1, &stmp)*/)
   {
     return 0;
   }
@@ -750,8 +750,8 @@ int precompute_simple_swap(CODE** c)
       !is_aload(c2, &itmp) &&
       !is_ldc_int(c2, &itmp) &&
       !is_ldc_string(c2, &stmp) &&
-      !is_aconst_null(c2) &&
-      !is_getfield(c2, &stmp))
+      !is_aconst_null(c2) /*&&
+      !is_getfield(c2, &stmp)*/)
   {
     return 0;
   }
