@@ -6,26 +6,6 @@
  * - Cheuk Chuen Siow
  ******************************/
 
-enum iMATH {
-  IADD = 0x1,
-  ISUB = 0x2,
-  IMUL = 0x4,
-  IDIV = 0x8
-};
-
-
-int is_iMath(CODE *c, unsigned int ops)
-{
-  if (ops & IADD) { return is_iadd(c); }
-  if (ops & ISUB) { return is_isub(c); }
-  if (ops & IMUL) { return is_imul(c); }
-  if (ops & IDIV) { return is_idiv(c); }
-  return 0;
-}
-
-
-
-
 /*
  * JOOS is Copyright (C) 1997 Laurie Hendren & Michael I. Schwartzbach
  *
@@ -125,6 +105,26 @@ int simplify_goto_goto(CODE **c)
 /*******************************************
  * Group comp520-2016-14's peephole patterns
  *******************************************/
+
+/**** Helper functions ****/
+
+enum iMATH {
+  IADD = 0x1,
+  ISUB = 0x2,
+  IMUL = 0x4,
+  IDIV = 0x8
+};
+
+int is_iMath(CODE *c, unsigned int ops)
+{
+  if (ops & IADD) { return is_iadd(c); }
+  if (ops & ISUB) { return is_isub(c); }
+  if (ops & IMUL) { return is_imul(c); }
+  if (ops & IDIV) { return is_idiv(c); }
+  return 0;
+}
+
+/**** Patterns ****/
 
 /* 
  * ldc 0          ldc 1          ldc 2
@@ -257,7 +257,8 @@ int simplify_constant_op(CODE **c)
     return replace(c,3+num_neg,makeCODEldc_int(k,NULL));
   } else {
     /* Should take less instructions even if we add `ineg`. */
-    return replace(c,3+num_neg,makeCODEineg(makeCODEldc_int(k,NULL)));
+    return replace(c,3+num_neg,makeCODEldc_int(0-k,
+                               makeCODEineg(NULL)));
   }
 }
 
