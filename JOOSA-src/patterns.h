@@ -564,22 +564,29 @@ int simplify_if_stmt1(CODE **c)
   if (is_if(c,&l1) &&
       is_label(nextby(destination(l1),2), &l3) &&
       is_ifeq(nextby(destination(l1),3), &l2)) {
-    copylabel(l2);
     if (is_if_icmpeq(*c,&l1)) {
+      copylabel(l2);
       return replace_modified(c,7,makeCODEif_icmpne(l2,NULL));
     } else if (is_if_icmpgt(*c,&l1)) {
+      copylabel(l2);
       return replace_modified(c,7,makeCODEif_icmple(l2,NULL));
     } else if (is_if_icmplt(*c,&l1)) {
+      copylabel(l2);
       return replace_modified(c,7,makeCODEif_icmpge(l2,NULL));
     } else if (is_if_icmple(*c,&l1)) {
+      copylabel(l2);
       return replace_modified(c,7,makeCODEif_icmpgt(l2,NULL));
     } else if (is_if_icmpge(*c,&l1)) {
+      copylabel(l2);
       return replace_modified(c,7,makeCODEif_icmplt(l2,NULL));
     } else if (is_if_icmpne(*c,&l1)) {
+      copylabel(l2);
       return replace_modified(c,7,makeCODEif_icmpeq(l2,NULL));
     } else if (is_if_acmpeq(*c,&l1)) {
+      copylabel(l2);
       return replace_modified(c,7,makeCODEif_acmpne(l2,NULL));
     } else if (is_if_acmpne(*c,&l1)) {
+      copylabel(l2);
       return replace_modified(c,7,makeCODEif_acmpeq(l2,NULL));
     }
   }
@@ -599,22 +606,29 @@ int simplify_if_stmt2(CODE **c)
       /* Iterate to get the last label and update l2 */
     }
     if (is_ifeq(next(destination(l2)),&l3)) {
-      copylabel(l3);
       if (is_if_icmpeq(*c,&l1)) {
+        copylabel(l3);
         return replace_modified(c,9,makeCODEif_icmpne(l3,NULL));
       } else if (is_if_icmpgt(*c,&l1)) {
+        copylabel(l3);
         return replace_modified(c,9,makeCODEif_icmple(l3,NULL));
       } else if (is_if_icmplt(*c,&l1)) {
+        copylabel(l3);
         return replace_modified(c,9,makeCODEif_icmpge(l3,NULL));
       } else if (is_if_icmple(*c,&l1)) {
+        copylabel(l3);
         return replace_modified(c,9,makeCODEif_icmpgt(l3,NULL));
       } else if (is_if_icmpge(*c,&l1)) {
+        copylabel(l3);
         return replace_modified(c,9,makeCODEif_icmplt(l3,NULL));
       } else if (is_if_icmpne(*c,&l1)) {
+        copylabel(l3);
         return replace_modified(c,9,makeCODEif_icmpeq(l3,NULL));
       } else if (is_if_acmpeq(*c,&l1)) {
+        copylabel(l3);
         return replace_modified(c,9,makeCODEif_acmpne(l3,NULL));
       } else if (is_if_acmpne(*c,&l1)) {
+        copylabel(l3);
         return replace_modified(c,9,makeCODEif_acmpeq(l3,NULL));
       }
     }
@@ -634,66 +648,80 @@ int simplify_if_stmt3(CODE **c)
           is_ifne(nextby(destination(l2),2),&l2)) {
       /* Iterate to get the last label and update l2 */
     }
-    copylabel(l2);
     if (is_if_icmpeq(*c,&l1)) {
       visit_nodes(*c,9);
+      copylabel(l2);
       return replace_modified(c,9,makeCODEif_icmpeq(l2,NULL));
     } else if (is_if_icmpgt(*c,&l1)) {
       visit_nodes(*c,9);
+      copylabel(l2);
       return replace_modified(c,9,makeCODEif_icmpgt(l2,NULL));
     } else if (is_if_icmplt(*c,&l1)) {
       visit_nodes(*c,9);
+      copylabel(l2);
       return replace_modified(c,9,makeCODEif_icmplt(l2,NULL));
     } else if (is_if_icmple(*c,&l1)) {
       visit_nodes(*c,9);
+      copylabel(l2);
       return replace_modified(c,9,makeCODEif_icmple(l2,NULL));
     } else if (is_if_icmpge(*c,&l1)) {
       visit_nodes(*c,9);
+      copylabel(l2);
       return replace_modified(c,9,makeCODEif_icmpge(l2,NULL));
     } else if (is_if_icmpne(*c,&l1)) {
       visit_nodes(*c,9);
+      copylabel(l2);
       return replace_modified(c,9,makeCODEif_icmpne(l2,NULL));
     } /*else if (is_if_acmpeq(*c,&l1)) {
       visit_nodes(*c,9);
+      copylabel(l2);
       return replace_modified(c,9,makeCODEif_acmpne(l2,NULL));
     } else if (is_if_acmpne(*c,&l1)) {
       visit_nodes(*c,9);
+      copylabel(l2);
       return replace_modified(c,9,makeCODEif_acmpeq(l2,NULL));
     }*/
   } else if (is_if(c,&l1) &&
              is_label(nextby(destination(l1),3),&l2) &&
              is_ifeq(nextby(destination(l1),4),&l3)) {
-    copylabel(l3);
     if (is_if_icmpeq(*c,&l1)) {
       visit_nodes(*c,8);
+      copylabel(l3);
       return replace_modified(c,8,makeCODEif_icmpne(l3,
                                   makeCODElabel(l2,NULL)));
     } else if (is_if_icmpgt(*c,&l1)) {
       visit_nodes(*c,8);
+      copylabel(l3);
       return replace_modified(c,8,makeCODEif_icmple(l3,
                                   makeCODElabel(l2,NULL)));
     } else if (is_if_icmplt(*c,&l1)) {
       visit_nodes(*c,8);
+      copylabel(l3);
       return replace_modified(c,8,makeCODEif_icmpge(l3,
                                   makeCODElabel(l2,NULL)));
     } else if (is_if_icmple(*c,&l1)) {
       visit_nodes(*c,8);
+      copylabel(l3);
       return replace_modified(c,8,makeCODEif_icmpgt(l3,
                                   makeCODElabel(l2,NULL)));
     } else if (is_if_icmpge(*c,&l1)) {
       visit_nodes(*c,8);
+      copylabel(l3);
       return replace_modified(c,8,makeCODEif_icmplt(l3,
                                   makeCODElabel(l2,NULL)));
     } else if (is_if_icmpne(*c,&l1)) {
       visit_nodes(*c,8);
+      copylabel(l3);
       return replace_modified(c,8,makeCODEif_icmpeq(l3,
                                   makeCODElabel(l2,NULL)));
     } /*else if (is_if_acmpeq(*c,&l1)) {
       visit_nodes(*c,8);
+      copylabel(l3);
       return replace_modified(c,8,makeCODEif_acmpne(l3,
                                   makeCODElabel(l2,NULL)));
     } else if (is_if_acmpne(*c,&l1)) {
       visit_nodes(*c,8);
+      copylabel(l3);
       return replace_modified(c,8,makeCODEif_acmpeq(l3,
                                   makeCODElabel(l2,NULL)));
     }*/
