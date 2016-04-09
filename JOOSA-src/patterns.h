@@ -183,6 +183,35 @@ int simplify_aload(CODE **c)
   return 0;
 }
 
+/*
+ * astore x
+ * aload x
+ * --------->
+ * dup
+ * astore x
+ */
+int optimize_astore(CODE **c)
+{ int x, y;
+  if (!is_astore(*c, &x))      { return 0; }
+  if (!is_aload(next(*c), &y)) { return 0; }
+  if (x == y)
+    return replace(c, 2, makeCODEdup(makeCODEastore(x,NULL)));
+  return 0;
+}
+
+int optimize_istore(CODE **c)
+{ int x, y;
+  if (!is_istore(*c, &x))      { return 0; }
+  if (!is_iload(next(*c), &y)) { return 0; }
+  if (x == y)
+    return replace(c, 2, makeCODEdup(makeCODEistore(x,NULL)));
+  return 0;
+}
+
+
+
+
+
 /* iload x
  * iload x
  * --------->
@@ -563,6 +592,27 @@ int simplify_if_stmt4(CODE **c)
   return 0;
 }
 
+
+
+/*
+ * if L
+ *  intsr1
+ *  ...
+ * L:
+ *  instr2
+ *  ...
+ * ----------> (instr1 == instr2
+ * instr
+ * if L
+ *  ...
+ * L:
+ *  ...
+ */
+
+
+
+
+
 /* iload x
  * aload y
  * swap
@@ -618,6 +668,8 @@ int simplify_swap2(CODE **c)
  * istore k
  */
 
+
+
 /* branching */
 /* 
  * iload_0
@@ -626,11 +678,19 @@ int simplify_swap2(CODE **c)
  * goto L
  */
 
+
 /* L1:
  * L2:
  * ------>
  * L1:    (replace all references to L2 with L1)
  */
+/*
+int merge_double_label(CODE** c)
+{ int L1, L2;
+  if(!is_label(*c, &L1)) { return 0; }
+  if(!is_label(*c, &L2)) { return 0; }
+}
+*/
 
 /* 
  * iload k (or iload_k, where k != 0)
@@ -639,23 +699,40 @@ int simplify_swap2(CODE **c)
  * goto L
  */
 
-/* isub
- * ifeq L
- * --------->
- * if_icmpeq L
+/* isub          isub
+ * ifeq L        ifne L
+ * --------->    --------->
+ * if_icmpeq L   if_icmpne L
  */ 
+int optimize_isub_branching(CODE** c)
+{ int L;
+  if (!is_isub(*c)) { return 0; }
 
-/* isub
- * ifne L
- * --------->
- * if_icmpne L
- */ 
+  if (is_ifne(next(*c), &L))
+  {
+    return replace_modified(c,2,makeCODEif_icmpne(L, NULL));
+  }
+  else if (is_ifeq(next(*c), &L))
+  {
+    return replace_modified(c,2,makeCODEif_icmpeq(L, NULL));
+  }
+  return 0;
+}
+
 
 /* aconst_null
  * ifnull L
  * --------->
  * goto L
- */ 
+ */
+int optimize_null_constant_branching(CODE** c)
+{ int L;
+  if (!is_aconst_null(*c))      { return 0; }
+  if (!is_ifnull(next(*c), &L)) { return 0; }
+  return replace_modified(c,2,makeCODEgoto(L, NULL));
+}
+
+ 
 
 /* astore k
  * getfield ...
@@ -735,5 +812,9 @@ int init_patterns()
   ADD_PATTERN(simplify_if_stmt4);
   ADD_PATTERN(simplify_swap1);
   ADD_PATTERN(simplify_swap2);
+  ADD_PATTERN(optimize_null_constant_branching);
+  ADD_PATTERN(optimize_isub_branching);
+  ADD_PATTERN(optimize_astore);
+  ADD_PATTERN(optimize_istore);
   return 1;
 }
