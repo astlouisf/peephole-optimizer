@@ -386,8 +386,9 @@ int remove_deadlabel(CODE **c)
  * stop_0:
  */
 int simplify_if_stmt1(CODE **c)
-{ int l1,l2;
+{ int l1,l2,l3;
   if (is_if(c,&l1) &&
+      is_label(nextby(destination(l1),2), &l3) &&
       is_ifeq(nextby(destination(l1),3), &l2)) {
     copylabel(l2);
     if (is_if_icmpeq(*c,&l1)) {
@@ -719,7 +720,7 @@ int init_patterns()
   ADD_PATTERN(simplify_aload_swap_putfield);
   ADD_PATTERN(simplify_constant_op);
   ADD_PATTERN(simplify_trivial_op);
-  ADD_PATTERN(remove_nop);
+  /* ADD_PATTERN(remove_nop); */
   ADD_PATTERN(remove_dup_pop);
   ADD_PATTERN(remove_2_swap);
   ADD_PATTERN(remove_aload_astore);
@@ -727,9 +728,9 @@ int init_patterns()
   ADD_PATTERN(remove_deadlabel);
   ADD_PATTERN(simplify_if_stmt1);
   ADD_PATTERN(simplify_if_stmt2);
-  ADD_PATTERN(simplify_if_stmt3);
+  /* ADD_PATTERN(simplify_if_stmt3); */
   ADD_PATTERN(simplify_if_stmt4);
   ADD_PATTERN(simplify_swap1);
-  ADD_PATTERN(simplify_swap2);
+  /* ADD_PATTERN(simplify_swap2); */
   return 1;
 }
