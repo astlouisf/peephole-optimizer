@@ -304,6 +304,30 @@ int simplify_iload(CODE **c)
   return 0;
 }
 
+/* int simplify_aload_getfield_aload_swap(CODE **c) {return 0;} */
+/* aload x
+ * getfield
+ * aload x
+ * swap
+ * -------->
+ * aload x
+ * dup
+ * getfield
+ */
+int simplify_aload_getfield_aload_swap(CODE **c)
+{ int x; char *y; int z;
+  if (is_aload(*c,&x) &&
+      is_getfield(next(*c),&y) &&
+      is_aload(next(next(*c)),&z) &&
+      is_swap(next(next(next(*c)))) &&
+      x == z) {
+     return replace(c,5,makeCODEaload(x,
+                        makeCODEdup(
+                        makeCODEgetfield(y,NULL))));
+  }
+  return 0;
+}
+
 /* dup
  * aload x
  * swap
@@ -1084,5 +1108,6 @@ int init_patterns()
   ADD_PATTERN(optimize_isub_branching);
   /* ADD_PATTERN(simplify_const_load_swap); */
   ADD_PATTERN(precompute_simple_swap);
+  ADD_PATTERN(simplify_aload_getfield_aload_swap);
   return 1;
 }
