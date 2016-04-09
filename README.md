@@ -32,7 +32,35 @@ or the following for optimized code
 awk '{sum += $3} END {print sum}' bench0*/optdump.size
 ```
 ### Run
-As each of the benchmark programs are different, see their respective README files for instructions to run the programs.
+Benchmark 1:
+```
+java Benchmark < in1
+```
+Benchmark 2:
+```
+java Main < in1
+```
+Benchmark 3:
+```
+???
+```
+Benchmark 4:
+```
+java Game
+```
+Benchmark 5:
+```
+java DungeonGenerator < in1
+```
+Benchmark 6:
+```
+java Main < in1
+```
+Benchmark 7:
+```
+java GrueHunt < in1
+```
+
 ### Clean
 Go to `PeepholeBenchmarks/` directory, then
 ```
