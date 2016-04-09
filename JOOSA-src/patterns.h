@@ -557,6 +557,49 @@ int remove_deadlabel(CODE **c)
   return 0;
 }
 
+/* ireturn
+ * L:
+ * --------->
+ * ireturn
+ */
+int simplify_ireturn_label(CODE **c)
+{ int l;
+  if(is_ireturn(*c) &&
+     is_goto(next(*c),&l)) {
+    return replace_modified(c,2,makeCODEireturn(NULL));
+  }
+  return 0;
+}
+
+/* areturn
+ * L:
+ * --------->
+ * areturn
+ */
+int simplify_areturn_label(CODE **c)
+{ int l;
+  if(is_areturn(*c) &&
+     is_goto(next(*c),&l)) {
+    return replace_modified(c,2,makeCODEareturn(NULL));
+  }
+  return 0;
+}
+
+/* /\* return */
+/*  * L: */
+/*  * ---------> */
+/*  * return */
+/*  *\/ */
+/* int simplify_return_label(CODE **c) */
+/* { int l; */
+/*   if(is_areturn(*c) && */
+/*      is_goto(next(*c),&l)) { */
+/*     return replace_modified(c,2,makeCODEreturn(NULL)); */
+/*   } */
+/*   return 0; */
+/* } */
+
+
 /* if_icmpeq true_1
  * iconst_0
  * goto stop_2
@@ -1175,5 +1218,7 @@ int init_patterns()
   /* ADD_PATTERN(simplify_const_load_swap); */
   ADD_PATTERN(precompute_simple_swap);
   ADD_PATTERN(simplify_aload_getfield_aload_swap);
+  ADD_PATTERN(simplify_ireturn_label);
+  ADD_PATTERN(simplify_areturn_label);
   return 1;
 }
