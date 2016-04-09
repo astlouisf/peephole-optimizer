@@ -1,0 +1,22 @@
+#!/bin/bash
+
+BENCHDIR="$PEEPDIR/PeepholeBenchmarks"
+
+for d in $(ls $BENCHDIR); do
+  echo "$BENCHDIR/$d"
+  cd "$BENCHDIR/$d"
+  case $d in
+  bench03)
+    $PEEPDIR/joosc *.java *.joos
+    $PEEPDIR/joosc -O *.java *.joos
+  ;;
+  *)
+    $PEEPDIR/joosc *.java
+    $PEEPDIR/joosc -O *.java
+  ;;
+  esac
+done;
+
+awk '{sum += $3} END {print sum}' $BENCHDIR/*/optdump.size
+awk '{sum += $3} END {print sum}' $BENCHDIR/*/dump.size
+
