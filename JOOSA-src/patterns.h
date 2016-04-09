@@ -264,11 +264,11 @@ int simplify_constant_op(CODE **c)
 
 
 
-/* iload x        iload x       ldc 0     ldc 1
- * ldc 0          ldc 1         load x    iload x
- * iadd / isub    idiv / imul   iadd      imul
- * ------>        ------>       ------>   -------->
- * iload x        iload x       iload x   iload x
+/* iload x        iload x       ldc 0
+ * ldc 0          ldc 1         load x
+ * iadd / isub    idiv          iadd
+ * ------>        ------>       ------>
+ * iload x        iload x       iload x
  */
 int simplify_trivial_op(CODE **c)
 { int x,k;
@@ -278,13 +278,11 @@ int simplify_trivial_op(CODE **c)
   if ((is_iload(*c,&x) &&
        is_ldc_int(c1,&k) &&
        ((k == 0 && is_iMath(c2, IADD|ISUB)) ||
-        (k == 1 && is_iMath(c2, IDIV|ISUB)))) ||
-
-      (is_ldc_int(*c,&k) &&
-       is_iload(c1,&x) &&
-       ((k == 0 && is_iadd(c2)) || (k == 1 && is_imul(c2)))))
-  {
-      return replace(c,3,makeCODEiload(x,NULL));
+        (k == 1 && is_iMath(c2, IDIV)))) ||
+        (is_ldc_int(*c,&k) &&
+         is_iload(c1,&x) &&
+         ((k == 0 && is_iadd(c2))))) {
+    return replace(c,3,makeCODEiload(x,NULL));
   }
   return 0;
 }
