@@ -6,6 +6,60 @@
  * - Cheuk Chuen Siow
  ******************************/
 
+int only_affect_stack(CODE *c)
+{
+  if (c == NULL) return 0;
+  switch (c->kind)
+  {
+  case nopCK:
+  case instanceofCK:
+  case i2cCK:
+  case inegCK:
+  case getfieldCK:	
+  case swapCK:
+  case iloadCK:
+  case aloadCK:
+  case ldc_intCK:
+  case ldc_stringCK:
+  case aconst_nullCK:
+  case dupCK:
+  case popCK:	
+  case iremCK:
+  case isubCK:
+  case idivCK:
+  case iaddCK:
+  case imulCK:
+    return 1;
+  case iincCK:
+  case checkcastCK:
+  case labelCK:
+  case newCK:
+  case istoreCK:
+  case astoreCK:
+  case putfieldCK:
+  case invokevirtualCK:
+  case invokenonvirtualCK:
+  case gotoCK:
+  case ifeqCK:
+  case ifneCK:
+  case ifnullCK:
+  case ifnonnullCK:
+  case if_icmpeqCK:
+  case if_icmpneCK:
+  case if_icmpgtCK:
+  case if_icmpltCK:
+  case if_icmpleCK:
+  case if_icmpgeCK:
+  case if_acmpeqCK:
+  case if_acmpneCK:
+  case returnCK:
+  case areturnCK:
+  case ireturnCK:
+  default:
+    return 0;
+  }
+}
+
 /*
  * JOOS is Copyright (C) 1997 Laurie Hendren & Michael I. Schwartzbach
  *
@@ -199,6 +253,13 @@ int optimize_astore(CODE **c)
   return 0;
 }
 
+/*
+ * istore x
+ * iload x
+ * --------->
+ * dup
+ * istore x
+ */
 int optimize_istore(CODE **c)
 { int x, y;
   if (!is_istore(*c, &x))      { return 0; }
@@ -253,6 +314,22 @@ int simplify_aload_swap_putfield(CODE **c)
   return 0;
 }
 
+
+/*
+ * ldc x
+ * ineg
+ * -------->
+ * ldc -x
+ */
+/*
+int constant_fold_ineg(CODE **c)
+{ int x;
+  if (!is_ldc_int(*c, &x)) { return 0; }
+  if (!is_ineg(next(*c)))  { return 0; }
+  return replace(c,2,makeCODEldc_int(-x,NULL));
+}
+*/
+
 /* ldc x
  * ldc y
  * iadd / isub / imul / idiv / irem
@@ -268,6 +345,7 @@ int simplify_constant_op(CODE **c)
     return 0;
   if ((xneg = is_ineg(next(*c))))
     num_neg++;
+
   if (!is_ldc_int(nextby(*c, 1 + num_neg), &y))
     return 0;
   if ((yneg = is_ineg(nextby(*c, 2 + num_neg))))
@@ -659,6 +737,68 @@ int simplify_swap2(CODE **c)
 
 
 
+/*
+ * ...
+ * instruction without side effect
+ * ... 
+ * pop (if stack height of 1)
+ * ---------->
+ *
+ */
+int remove_popped_computation(CODE **c)
+{ int sh = 0; /* stack height */
+  int inc, affected, used;
+  CODE* cn = *c;
+  int num_instr = 0;
+  while (cn != NULL && only_affect_stack(cn))
+    {
+      stack_effect(cn, &inc, &affected, &used);
+      sh += inc;
+      /* Means we changed something under our starting point */
+      if (affected < -sh) { return 0; }
+
+      num_instr++;
+      cn = next(cn);
+
+      /* If next is pop we go a useless computation! */
+      if (sh == 1 && is_pop(cn))
+        {
+          return replace(c, num_instr + 1 ,NULL);
+        }
+    }
+  return 0;
+}
+
+
+/*
+ * (i|a)store x
+ * [sequence with no iload x, astore x or istore x]
+ * <method end>
+ * --------->
+ * pop
+ * [sequence with no iload x, astore x or istore x]
+ * <method end>
+ */
+int unused_store_to_pop(CODE **c)
+{
+  int x, y;
+  CODE* cn = *c;
+  if (!is_istore(*c, &x) && !is_astore(*c,&y)) { return 0; }
+  do {
+    cn = next(cn);
+  } while (cn != NULL &&
+          !(is_iload(cn, &y) && x == y) &&
+          !(is_aload(cn, &y) && x == y) &&
+          !(is_astore(cn, &y) && x == y) && 
+          !(is_istore(cn, &y) && x == y));
+
+  if (cn == NULL || ((is_astore(cn, &y) || is_istore(cn, &y)) && x == y)) {
+      return replace_modified(c, 1, makeCODEpop(NULL)); /* Stored value unused... */
+  }
+  return 0;
+}
+
+
 /* also do this for astore and for _k (does this save memory?)
  * istore k
  * iload m
@@ -793,6 +933,7 @@ int init_patterns()
   ADD_PATTERN(simplify_astore);
   ADD_PATTERN(positive_increment);
   ADD_PATTERN(simplify_goto_goto);
+  /*ADD_PATTERN(constant_fold_ineg);*/
   ADD_PATTERN(simplify_multiplication_left);
   ADD_PATTERN(simplify_istore);
   ADD_PATTERN(simplify_aload);
@@ -800,7 +941,14 @@ int init_patterns()
   ADD_PATTERN(simplify_aload_swap_putfield);
   ADD_PATTERN(simplify_constant_op);
   ADD_PATTERN(simplify_trivial_op);
-  /* ADD_PATTERN(remove_nop); */
+/*
+  ADD_PATTERN(remove_nop);
+*/
+  ADD_PATTERN(optimize_istore);
+  ADD_PATTERN(optimize_astore);
+  ADD_PATTERN(unused_store_to_pop);
+  ADD_PATTERN(remove_popped_computation);
+
   ADD_PATTERN(remove_dup_pop);
   ADD_PATTERN(remove_2_swap);
   ADD_PATTERN(remove_aload_astore);
@@ -808,13 +956,11 @@ int init_patterns()
   ADD_PATTERN(remove_deadlabel);
   ADD_PATTERN(simplify_if_stmt1);
   ADD_PATTERN(simplify_if_stmt2);
-  /* ADD_PATTERN(simplify_if_stmt3); */
-  ADD_PATTERN(simplify_if_stmt4);
+  ADD_PATTERN(simplify_if_stmt3);
+/*  ADD_PATTERN(simplify_if_stmt4); */
   ADD_PATTERN(simplify_swap1);
   ADD_PATTERN(simplify_swap2);
   ADD_PATTERN(optimize_null_constant_branching);
   ADD_PATTERN(optimize_isub_branching);
-  ADD_PATTERN(optimize_astore);
-  ADD_PATTERN(optimize_istore);
   return 1;
 }
