@@ -331,7 +331,7 @@ int simplify_aload_getfield_aload_swap(CODE **c)
       is_aload(next(next(*c)),&z) &&
       is_swap(next(next(next(*c)))) &&
       x == z) {
-     return replace(c,5,makeCODEaload(x,
+     return replace(c,4,makeCODEaload(x,
                         makeCODEdup(
                         makeCODEgetfield(y,NULL))));
   }
@@ -1041,7 +1041,7 @@ int merge_double_label(CODE** c)
  * --------->    --------->
  * if_icmpeq L   if_icmpne L
  */ 
-int optimize_isub_branching(CODE** c)
+int optimize_isub_branching(CODE **c)
 { int L;
   if (!is_isub(*c)) { return 0; }
 
@@ -1056,20 +1056,45 @@ int optimize_isub_branching(CODE** c)
   return 0;
 }
 
-
 /* aconst_null
  * ifnull L
  * --------->
  * goto L
  */
-int optimize_null_constant_branching(CODE** c)
+int optimize_null_constant_branching(CODE **c)
 { int L;
   if (!is_aconst_null(*c))      { return 0; }
   if (!is_ifnull(next(*c), &L)) { return 0; }
   return replace_modified(c,2,makeCODEgoto(L, NULL));
 }
 
- 
+/* ldc_string a
+ * dup
+ * ifnull x
+ * goto y
+ * label j
+ * pop
+ * ldc_string b
+ * label k
+ * --------->
+ * ldc_string a
+ */
+int simplify_string_constant(CODE **c)
+{ int x,y,j,k; char *a,*b;
+  if (is_ldc_string(*c,&a) &&
+      is_dup(next(*c)) &&
+      is_ifnull(nextby(*c,2),&x) &&
+      is_goto(nextby(*c,3),&y) &&
+      is_label(nextby(*c,4),&j) &&
+      is_pop(nextby(*c,5)) &&
+      is_ldc_string(nextby(*c,6),&b) &&
+      is_label(nextby(*c,7),&k)) {
+    return replace_modified(c,8,makeCODEldc_string(a,NULL));
+  }
+  return 0;
+}
+
+
 
 /* astore k
  * getfield ...
@@ -1163,5 +1188,6 @@ int init_patterns()
   /* ADD_PATTERN(simplify_const_load_swap); */
   ADD_PATTERN(precompute_simple_swap);
   ADD_PATTERN(simplify_aload_getfield_aload_swap);
+  ADD_PATTERN(simplify_string_constant);
   return 1;
 }
