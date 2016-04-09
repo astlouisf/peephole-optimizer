@@ -1,6 +1,10 @@
 # Peephole Contest
 ## Installation
-Set environment variable `PEEPDIR` to refer to this directory permanently. Go to `JOOSA-src/` directory, then
+Set environment variable `PEEPDIR` to refer to this directory permanently.
+
+Also `export CLASSPATH=.:../../jooslib.jar` to be able to run the benchmark programs.
+
+Go to `JOOSA-src/` directory, then
 ```
 make
 ```
