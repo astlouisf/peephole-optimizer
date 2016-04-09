@@ -371,6 +371,26 @@ int simplify_constant_op(CODE **c)
 
 
 
+/*
+ * return    
+ * L:
+ * return
+ * ------->
+ * L:
+ * return
+ */
+int remove_superfluous_return(CODE** c)
+{ int L;
+  CODE *c1 = next(*c);
+  CODE *c2 = next(c1);
+  if (!is_return(*c) || !is_ireturn(*c) || !is_areturn(*c)) { return 0; }
+  if (!is_label(c1, &L))                                    { return 0; }
+  if (!is_return(c2) || !is_ireturn(c2) || !is_areturn(c2)) { return 0; }
+  return replace(c, 1, NULL);
+}
+
+
+
 /* iload x        iload x       ldc 0
  * ldc 0          ldc 1         load x
  * iadd / isub    idiv          iadd
@@ -688,6 +708,89 @@ int simplify_if_stmt4(CODE **c)
  */
 
 
+/*
+ * load or const 1
+ * load or const 2
+ * swap
+ * -------->
+ * load or const 2
+ * load or const 1
+ */
+int precompute_simple_swap(CODE** c)
+{ int   itmp;
+  char* stmp;
+  CODE* c1 = *c;
+  CODE* c2 = next(c1);
+  CODE* out;
+
+  if (!is_iload(c1, &itmp) &&
+      !is_aload(c1, &itmp) &&
+      !is_ldc_int(c1, &itmp) &&
+      !is_ldc_string(c1, &stmp) &&
+      !is_aconst_null(c1) &&
+      !is_getfield(c1, &stmp))
+  {
+    return 0;
+  }
+  if (!is_iload(c2, &itmp) &&
+      !is_aload(c2, &itmp) &&
+      !is_ldc_int(c2, &itmp) &&
+      !is_ldc_string(c2, &stmp) &&
+      !is_aconst_null(c2) &&
+      !is_getfield(c2, &stmp))
+  {
+    return 0;
+  }
+  if (!is_swap(nextby(*c,2))) { return 0;}
+
+  switch (c1->kind)
+  {
+  case getfieldCK:
+    out = makeCODEgetfield(c1->val.getfieldC, NULL);
+    break;
+  case iloadCK:
+    out = makeCODEiload(c1->val.iloadC, NULL);
+    break;
+  case aloadCK:
+    out = makeCODEaload(c1->val.aloadC, NULL);
+    break;
+  case ldc_intCK:
+    out = makeCODEldc_int(c1->val.ldc_intC, NULL);
+    break;
+  case ldc_stringCK:
+    out = makeCODEldc_string(c1->val.ldc_stringC, NULL);
+    break;
+  case aconst_nullCK:
+    out = makeCODEaconst_null(NULL);
+    break;
+  default: return 0;
+  }
+
+  switch (c2->kind)
+  {
+  case getfieldCK:
+    out = makeCODEgetfield(c2->val.getfieldC, out);
+    break;
+  case iloadCK:
+    out = makeCODEiload(c2->val.iloadC, out);
+    break;
+  case aloadCK:
+    out = makeCODEaload(c2->val.aloadC, out);
+    break;
+  case ldc_intCK:
+    out = makeCODEldc_int(c2->val.ldc_intC, out);
+    break;
+  case ldc_stringCK:
+    out = makeCODEldc_string(c2->val.ldc_stringC, out);
+    break;
+  case aconst_nullCK:
+    out = makeCODEaconst_null(out);
+    break;
+  default: return 0;
+  }
+
+  return replace(c, 3, out);
+}
 
 
 
@@ -950,6 +1053,7 @@ int init_patterns()
   ADD_PATTERN(optimize_astore);
   ADD_PATTERN(unused_store_to_pop);
   ADD_PATTERN(remove_popped_computation);
+  ADD_PATTERN(remove_superfluous_return);
 
 /*  ADD_PATTERN(remove_dup_pop); remove_popped_computation handles this */ 
   ADD_PATTERN(remove_2_swap);
@@ -964,5 +1068,6 @@ int init_patterns()
   ADD_PATTERN(simplify_swap2);
   ADD_PATTERN(optimize_null_constant_branching);
   ADD_PATTERN(optimize_isub_branching);
+  ADD_PATTERN(precompute_simple_swap);
   return 1;
 }
