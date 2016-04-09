@@ -42,7 +42,8 @@ java Main < in1
 ```
 Benchmark 3:
 ```
-???
+cd lib/; javac -cp $PEEPDIR/jooslib.jar: JoosBitwise.java; cd ..
+java -cp $PEEPDIR/jooslib.jar: Main < in1
 ```
 Benchmark 4:
 ```
