@@ -1,4 +1,6 @@
-for benchmark in bench01 bench02 bench04 bench05 bench07
+rm -rf bench0*/*.class bench0*/*.j bench0*/*.optdump bench0*/*.dump bench0*/*.size bench0*/*~
+
+for benchmark in bench01 bench02 bench04 bench05 bench06 bench07
 do
 cd $benchmark
 $PEEPDIR/joosc -O *.java
