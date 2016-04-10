@@ -369,22 +369,6 @@ int simplify_aload_swap_putfield(CODE **c)
   return 0;
 }
 
-
-/*
- * ldc x
- * ineg
- * -------->
- * ldc -x
- */
-/*
-int constant_fold_ineg(CODE **c)
-{ int x;
-  if (!is_ldc_int(*c, &x)) { return 0; }
-  if (!is_ineg(next(*c)))  { return 0; }
-  return replace(c,2,makeCODEldc_int(-x,NULL));
-}
-*/
-
 /* ldc x
  * ldc y
  * iadd / isub / imul / idiv / irem
@@ -424,8 +408,6 @@ int simplify_constant_op(CODE **c)
   }
 }
 
-
-
 /*
  * return    
  * L:
@@ -443,8 +425,6 @@ int remove_superfluous_return(CODE** c)
   if (!is_return(c2) || !is_ireturn(c2) || !is_areturn(c2)) { return 0; }
   return replace(c, 1, NULL);
 }
-
-
 
 /* iload x        iload x       ldc 0
  * ldc 0          ldc 1         load x
@@ -465,39 +445,6 @@ int simplify_trivial_op(CODE **c)
          is_iload(c1,&x) &&
          ((k == 0 && is_iadd(c2))))) {
     return replace(c,3,makeCODEiload(x,NULL));
-  }
-  return 0;
-}
-
-/* nop
- * --------->
- * 
- */ 
-int remove_nop(CODE **c)
-{ 
-  if (is_nop(*c)) {
-    return kill_line(c);
-  }
-  return 0;
-}
-
-/* dup
- * pop
- * --------->
- * 
- */
-/* Soundness (the first and last lines are the same):
- * [...:v]
- * [...:v:v]
- * [...:v]
- * -------->
- * [...:v]
- */
-int remove_dup_pop(CODE **c)
-{ 
-  if (is_dup(*c) &&
-      is_pop(next(*c))) {
-    return replace_modified(c,2,NULL);
   }
   return 0;
 }
@@ -589,7 +536,7 @@ int remove_deadlabel(CODE **c)
 }
 
 /* ireturn
- * L:
+ * goto l
  * --------->
  * ireturn
  */
@@ -604,7 +551,7 @@ int simplify_ireturn_label(CODE **c)
 }
 
 /* areturn
- * L:
+ * goto l
  * --------->
  * areturn
  */
@@ -744,15 +691,7 @@ int simplify_if_stmt3(CODE **c)
       visit_nodes(*c,9);
       copylabel(l2);
       return replace_modified(c,9,makeCODEif_icmpne(l2,NULL));
-    } /*else if (is_if_acmpeq(*c,&l1)) {
-      visit_nodes(*c,9);
-      copylabel(l2);
-      return replace_modified(c,9,makeCODEif_acmpne(l2,NULL));
-    } else if (is_if_acmpne(*c,&l1)) {
-      visit_nodes(*c,9);
-      copylabel(l2);
-      return replace_modified(c,9,makeCODEif_acmpeq(l2,NULL));
-    }*/
+    }
   } else if (is_if(c,&l1) &&
              is_label(nextby(destination(l1),3),&l2) &&
              is_ifeq(nextby(destination(l1),4),&l3)) {
@@ -786,17 +725,7 @@ int simplify_if_stmt3(CODE **c)
       copylabel(l3);
       return replace_modified(c,8,makeCODEif_icmpeq(l3,
                                   makeCODElabel(l2,NULL)));
-    } /*else if (is_if_acmpeq(*c,&l1)) {
-      visit_nodes(*c,8);
-      copylabel(l3);
-      return replace_modified(c,8,makeCODEif_acmpne(l3,
-                                  makeCODElabel(l2,NULL)));
-    } else if (is_if_acmpne(*c,&l1)) {
-      visit_nodes(*c,8);
-      copylabel(l3);
-      return replace_modified(c,8,makeCODEif_acmpeq(l3,
-                                  makeCODElabel(l2,NULL)));
-    }*/
+    }
   }
   return 0;
 }
@@ -853,24 +782,6 @@ int simplify_if_stmt4(CODE **c)
   }
   return 0;
 }
-
-
-
-/*
- * if L
- *  intsr1
- *  ...
- * L:
- *  instr2
- *  ...
- * ----------> (instr1 == instr2
- * instr
- * if L
- *  ...
- * L:
- *  ...
- */
-
 
 /*
  * Swap simple instructions. Loads and const don't have
@@ -947,8 +858,6 @@ int precompute_simple_swap(CODE** c)
 
 }
 
-
-
 /* iload x
  * aload y
  * swap
@@ -1024,8 +933,6 @@ int simplify_swap2(CODE **c)
   return 0;
 }
 
-
-
 /*
  * If a sequence without side effects generates only one item
  * on the stack and it is popped, this sequence hasn't done
@@ -1075,7 +982,6 @@ int remove_popped_computation(CODE **c)
   return 0;
 }
 
-
 /*
  * If we find a store we check if it gets overwritten
  * in the rest of the basic block. If it does, storing
@@ -1123,43 +1029,6 @@ int unused_store_to_pop(CODE **c)
       return replace_modified(c, 1, makeCODEpop(NULL)); /* Stored value unused... */
   }
   return 0;
-}
-
-/*
- * branch_instruction_to L1
- * ...
- * L1:
- * L2:
- * ------>
- * branch_instruction_to L2
- * ...
- * L1:
- * L2:
- */
-int point_furthest_label(CODE** c)
-{ int L1, L2;
-  if(!uses_label(*c, &L1)) { return 0; }
-  if(!is_label(next(destination(L1)), &L2)) { return 0; }
-
-  copylabel(L2);
-
-  switch((*c)->kind)
-  {
-  case gotoCK:      return replace_modified(c, 1, makeCODEgoto(L2, NULL));
-  case ifeqCK:      return replace_modified(c, 1, makeCODEifeq(L2, NULL));
-  case ifneCK:      return replace_modified(c, 1, makeCODEifne(L2, NULL));
-  case ifnullCK:    return replace_modified(c, 1, makeCODEifnull(L2, NULL));
-  case ifnonnullCK: return replace_modified(c, 1, makeCODEifnonnull(L2, NULL));
-  case if_icmpeqCK: return replace_modified(c, 1, makeCODEif_icmpeq(L2, NULL));
-  case if_icmpneCK: return replace_modified(c, 1, makeCODEif_icmpne(L2, NULL));
-  case if_icmpgtCK: return replace_modified(c, 1, makeCODEif_icmpgt(L2, NULL));
-  case if_icmpltCK: return replace_modified(c, 1, makeCODEif_icmplt(L2, NULL));
-  case if_icmpleCK: return replace_modified(c, 1, makeCODEif_icmple(L2, NULL));
-  case if_icmpgeCK: return replace_modified(c, 1, makeCODEif_icmpge(L2, NULL));
-  case if_acmpeqCK: return replace_modified(c, 1, makeCODEif_icmpeq(L2, NULL));
-  case if_acmpneCK: return replace_modified(c, 1, makeCODEif_icmpne(L2, NULL));
-  default:          return 0;
-  }
 }
 
 /* isub          isub
@@ -1249,46 +1118,60 @@ int simplify_string_constant(CODE **c)
 
 
 
-/* astore k
- * getfield ...
- * astore k
- * --------->
- * astore k
- * dup
- * getfield ...
- */ 
+/**** Unused patterns ****/
 
-/* THIS MIGHT NOT BE SOUND, ONLY IMPLEMENT THIS IF DUP+SWAP < ALOAD K
- * astore k
- * aload m
- * aload k
+/* nop
  * --------->
- * dup
- * astore k
- * aload m
- * swap
- */ 
+ * 
+ */
+/*
+int remove_nop(CODE **c)
+{ 
+  if (is_nop(*c)) {
+    return kill_line(c);
+  }
+  return 0;
+}
+*/
 
 /*
-// loop folding?
-// put in loop invariants? (VMs slide 60)
-// simplify arithmetic expressions that have constants?
-// factor arithmetic expressions?
-// simplify control flow to better optimize?
-// write a program to test out the permutations of our rules to get the best order of optimizations?
-// swap order arithmetic expressions because it might allow for optimizations? This would remove the need for the following symmetric patterns but doesn't follow a lexicographic order. If we put the swap at the beginning though, it might find an optimizing rule and that that iteration will decrease the lexicographic order.
-*/
-/* 
- * 
- * --------->
- * 
- */ 
-
-/* would this change anything (with an empty stack)?
- * pop
- * dup
- * --------->
+ * branch_instruction_to L1
+ * ...
+ * L1:
+ * L2:
+ * ------>
+ * branch_instruction_to L2
+ * ...
+ * L1:
+ * L2:
  */
+/*
+int point_furthest_label(CODE** c)
+{ int L1, L2;
+  if(!uses_label(*c, &L1)) { return 0; }
+  if(!is_label(next(destination(L1)), &L2)) { return 0; }
+
+  copylabel(L2);
+
+  switch((*c)->kind)
+  {
+  case gotoCK:      return replace_modified(c, 1, makeCODEgoto(L2, NULL));
+  case ifeqCK:      return replace_modified(c, 1, makeCODEifeq(L2, NULL));
+  case ifneCK:      return replace_modified(c, 1, makeCODEifne(L2, NULL));
+  case ifnullCK:    return replace_modified(c, 1, makeCODEifnull(L2, NULL));
+  case ifnonnullCK: return replace_modified(c, 1, makeCODEifnonnull(L2, NULL));
+  case if_icmpeqCK: return replace_modified(c, 1, makeCODEif_icmpeq(L2, NULL));
+  case if_icmpneCK: return replace_modified(c, 1, makeCODEif_icmpne(L2, NULL));
+  case if_icmpgtCK: return replace_modified(c, 1, makeCODEif_icmpgt(L2, NULL));
+  case if_icmpltCK: return replace_modified(c, 1, makeCODEif_icmplt(L2, NULL));
+  case if_icmpleCK: return replace_modified(c, 1, makeCODEif_icmple(L2, NULL));
+  case if_icmpgeCK: return replace_modified(c, 1, makeCODEif_icmpge(L2, NULL));
+  case if_acmpeqCK: return replace_modified(c, 1, makeCODEif_icmpeq(L2, NULL));
+  case if_acmpneCK: return replace_modified(c, 1, makeCODEif_icmpne(L2, NULL));
+  default:          return 0;
+  }
+}
+*/
 
 
 
@@ -1310,10 +1193,14 @@ int init_patterns()
 
   Incompatible with simplify ifs_stmt#
   ADD_PATTERN(point_furthest_label);
+
+  remove_popped_computation handles this
+  ADD_PATTERN(remove_dup_pop);
+
+  Done by precompute simple swap
+  ADD_PATTERN(simplify_const_load_swap);
+  ADD_PATTERN(simplify_swap1);
 */
-/*  ADD_PATTERN(remove_dup_pop); remove_popped_computation handles this */ 
-/* ADD_PATTERN(simplify_const_load_swap); */
-/* ADD_PATTERN(simplify_swap1); Done by precompute simple swap */
 
   ADD_PATTERN(simplify_multiplication_right);
   ADD_PATTERN(simplify_astore);
@@ -1322,30 +1209,32 @@ int init_patterns()
   ADD_PATTERN(simplify_multiplication_left);
   ADD_PATTERN(simplify_istore);
   ADD_PATTERN(simplify_aload);
+  ADD_PATTERN(optimize_astore);
+  ADD_PATTERN(optimize_istore);
   ADD_PATTERN(simplify_iload);
+  ADD_PATTERN(simplify_aload_getfield_aload_swap);
   ADD_PATTERN(simplify_aload_swap_putfield);
   ADD_PATTERN(simplify_constant_op);
-  ADD_PATTERN(simplify_trivial_op);
-  ADD_PATTERN(optimize_istore);
-  ADD_PATTERN(optimize_astore);
-  ADD_PATTERN(unused_store_to_pop);
-  ADD_PATTERN(remove_popped_computation);
-  ADD_PATTERN(remove_deadlabel);
   ADD_PATTERN(remove_superfluous_return);
+  ADD_PATTERN(simplify_trivial_op);
   ADD_PATTERN(remove_2_swap);
   ADD_PATTERN(remove_aload_astore);
   ADD_PATTERN(remove_iload_istore);
+  ADD_PATTERN(remove_deadlabel);
+  ADD_PATTERN(simplify_ireturn_label);
+  ADD_PATTERN(simplify_areturn_label);
   ADD_PATTERN(simplify_if_stmt1);
   ADD_PATTERN(simplify_if_stmt2);
   ADD_PATTERN(simplify_if_stmt3);
   ADD_PATTERN(simplify_if_stmt4);
-  ADD_PATTERN(simplify_swap2);
-  ADD_PATTERN(optimize_null_constant_branching);
-  ADD_PATTERN(optimize_isub_branching);
   ADD_PATTERN(precompute_simple_swap);
-  ADD_PATTERN(simplify_aload_getfield_aload_swap);
-  ADD_PATTERN(simplify_ireturn_label);
-  ADD_PATTERN(simplify_areturn_label);
+  ADD_PATTERN(simplify_swap2);
+
+  ADD_PATTERN(unused_store_to_pop);
+  ADD_PATTERN(remove_popped_computation);
+  ADD_PATTERN(optimize_isub_branching);
+  ADD_PATTERN(optimize_null_constant_branching);
   ADD_PATTERN(simplify_string_constant);
+
   return 1;
 }
