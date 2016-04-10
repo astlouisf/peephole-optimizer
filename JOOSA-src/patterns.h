@@ -1156,19 +1156,24 @@ int optimize_null_constant_branching(CODE **c)
   return replace_modified(c,2,makeCODEgoto(L, NULL));
 }
 
-/* ldc_string a
- * dup
- * ifnull x
- * goto y
- * label j
- * pop
- * ldc_string b
- * label k
- * --------->
- * ldc_string a
+/* ldc_string a      aload i
+ * dup               dup
+ * ifnull x          ifnull x
+ * goto y            goto y
+ * label j           label j
+ * pop               pop
+ * ldc_string b      ldc_string b
+ * label k           label k
+ * --------->        --------->
+ * ldc_string a      aload i
+ *                   dup
+ *                   ifnonnull y
+ *                   pop
+ *                   ldc_string b
+ *                   label k
  */
 int simplify_string_constant(CODE **c)
-{ int x,y,j,k; char *a,*b;
+{ int x,y,i,j,k; char *a,*b;
   if (is_ldc_string(*c,&a) &&
       is_dup(next(*c)) &&
       is_ifnull(nextby(*c,2),&x) &&
@@ -1178,6 +1183,21 @@ int simplify_string_constant(CODE **c)
       is_ldc_string(nextby(*c,6),&b) &&
       is_label(nextby(*c,7),&k)) {
     return replace_modified(c,8,makeCODEldc_string(a,NULL));
+  } else if (is_aload(*c,&i) &&
+      is_dup(next(*c)) &&
+      is_ifnull(nextby(*c,2),&x) &&
+      is_goto(nextby(*c,3),&y) &&
+      is_label(nextby(*c,4),&j) &&
+      is_pop(nextby(*c,5)) &&
+      is_ldc_string(nextby(*c,6),&b) &&
+      is_label(nextby(*c,7),&k)) {
+    copylabel(y);
+    return replace_modified(c,8,makeCODEaload(i,
+                                makeCODEdup(
+                                makeCODEifnonnull(y,
+                                makeCODEpop(
+                                makeCODEldc_string(b,
+                                makeCODElabel(k,NULL)))))));
   }
   return 0;
 }
@@ -1262,10 +1282,8 @@ int init_patterns()
   ADD_PATTERN(simplify_trivial_op);
   ADD_PATTERN(optimize_istore);
   ADD_PATTERN(optimize_astore);
-
   ADD_PATTERN(unused_store_to_pop); 
   ADD_PATTERN(remove_popped_computation);
-
   ADD_PATTERN(remove_deadlabel);
   ADD_PATTERN(remove_superfluous_return);
   ADD_PATTERN(remove_2_swap);
