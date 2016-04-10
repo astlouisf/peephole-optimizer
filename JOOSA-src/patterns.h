@@ -423,7 +423,6 @@ int simplify_aload_swap_putfield(CODE **c)
  * ------>
  * ldc x (+|-|*|/|%) y
  */
-/* Soundness: TODO */
 int simplify_constant_op(CODE **c)
 { int x,y,k;
   int num_neg = 0;
@@ -465,7 +464,7 @@ int simplify_constant_op(CODE **c)
  * L:
  * return
  */
-/* Soundness: TODO */
+/* Soundness: the label won't change any behaviour */
 int remove_superfluous_return(CODE** c)
 { int L;
   CODE *c1 = next(*c);
@@ -482,6 +481,7 @@ int remove_superfluous_return(CODE** c)
  * ------>        ------>       ------>
  * iload x        iload x       iload x
  */
+/* Soundness: these are arithmetic invariants */
 int simplify_trivial_op(CODE **c)
 { int x,k;
   CODE *c1, *c2;
@@ -590,8 +590,7 @@ int remove_deadlabel(CODE **c)
  * --------->
  * ireturn
  */
- /* [...:<frame>:i] */
-/* Soundness: TODO */
+/* Soundness: the goto after the ireturn will never be reached */
 int simplify_ireturn_label(CODE **c)
 { int l;
   if(is_ireturn(*c) &&
@@ -606,7 +605,7 @@ int simplify_ireturn_label(CODE **c)
  * --------->
  * areturn
  */
-/* Soundness: TODO */
+/* Soundness: the goto after the areturn will never be reached */
 int simplify_areturn_label(CODE **c)
 { int l;
   if(is_areturn(*c) &&
@@ -630,7 +629,6 @@ int simplify_areturn_label(CODE **c)
  * ...
  * stop_0:
  */
-/* Soundness: TODO */
 int simplify_if_stmt1(CODE **c)
 { int l1,l2,l3;
   if (is_if(c,&l1) &&
@@ -668,7 +666,6 @@ int simplify_if_stmt1(CODE **c)
 /* Extension of simplify_if_stmt1 to simplify the following if statement:
  * if (i != 0 && i != 4 && i != 8 ) {}
  */
-/* Soundness: TODO */
 int simplify_if_stmt2(CODE **c)
 { int l1,l2,l3;
   if (is_if(c,&l1) &&
@@ -712,7 +709,6 @@ int simplify_if_stmt2(CODE **c)
 /* Extension of simplify_if_stmt1 to simplify the following if statement:
  * if (i == 0 || i == 4 || i == 8 ) {}
  */
-/* Soundness: TODO */
 int simplify_if_stmt3(CODE **c)
 { int l1,l2,l3;
   if (is_if(c,&l1) &&
@@ -798,7 +794,6 @@ int simplify_if_stmt3(CODE **c)
  * --------->
  * ss = new BacktrackSolver() ;
  */
-/* Soundness: TODO */
 int simplify_if_stmt4(CODE **c)
 { int a,l1,l2,l3,k1,k2,lines; char *b,*x1,*x2,*y1,*y2;
   if (is_aload(*c,&a) &&
@@ -1038,7 +1033,7 @@ int remove_popped_computation(CODE **c)
   return 0;
 }
 
-/*
+/* Soundess:
  * If we find a store we check if it gets overwritten
  * in the rest of the basic block. If it does, storing
  * a value is equivalent to only consuming it.
@@ -1057,7 +1052,6 @@ int remove_popped_computation(CODE **c)
  * [sequence with no (a|i)load x, (a|i)store x, no branching in/out]
  * <method end>
  */
-/* Soundness: TODO */
 int unused_store_to_pop(CODE **c)
 {
   int x, y;
@@ -1112,7 +1106,7 @@ int optimize_isub_branching(CODE **c)
 }
 
 /*
- * Loading a null and automatically testing for null
+ * Soundness: Loading a null and automatically testing for null
  * will be equivalent to a go to....
  *
  * aconst_null
@@ -1120,7 +1114,6 @@ int optimize_isub_branching(CODE **c)
  * --------->
  * goto L
  */
-/* Soundness: TODO */
 int optimize_null_constant_branching(CODE **c)
 { int L;
   if (!is_aconst_null(*c))      { return 0; }
@@ -1144,7 +1137,6 @@ int optimize_null_constant_branching(CODE **c)
  *                   ldc_string b
  *                   label k
  */
-/* Soundness: TODO */
 int simplify_string_constant(CODE **c)
 { int x,y,i,j,k; char *a,*b;
   if (is_ldc_string(*c,&a) &&
