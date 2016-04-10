@@ -332,6 +332,54 @@ int simplify_aload_getfield_aload_swap(CODE **c)
   return 0;
 }
 
+/* /\* goto L1 */
+/*  * ... */
+/*  * L1: */
+/*  * L2: */
+/*  * ---------> */
+/*  * goto L2 */
+/*  * ... */
+/*  * L1: */
+/*  * L2: */
+/*  *\/  */
+/* int remove_extra_labels_goto(CODE **c) */
+/* { int l1,l2; */
+/*   if (is_goto(*c,&l1) && is_label(next(destination(l1)),&l2)) { */
+/*   /\* if (is_goto(*c,&l1) && is_label(next(destination(l1)),&l2) && l1>l2) { *\/ */
+/*      droplabel(l1); */
+/*      copylabel(l2); */
+/*      return replace(c,1,makeCODEgoto(l2,NULL)); */
+/*   } */
+/*   return 0; */
+/* } */
+/* int remove_extra_labels_ifeq(CODE **c) */
+/* { int l1,l2; */
+/*   if (is_ifeq(*c,&l1) && is_label(next(destination(l1)),&l2)) { */
+/*      droplabel(l1); */
+/*      copylabel(l2); */
+/*      return replace(c,1,makeCODEifeq(l2,NULL)); */
+/*   } */
+/*   return 0; */
+/* } */
+/* int remove_extra_labels_icmpeq(CODE **c) */
+/* { int l1,l2; */
+/*   if (is_if_icmpeq(*c,&l1) && is_label(next(destination(l1)),&l2)) { */
+/*      droplabel(l1); */
+/*      copylabel(l2); */
+/*      return replace(c,1,makeCODEif_icmpeq(l2,NULL)); */
+/*   } */
+/*   return 0; */
+/* } */
+/* int remove_extra_labels_icmpne(CODE **c) */
+/* { int l1,l2; */
+/*   if (is_if_icmpne(*c,&l1) && is_label(next(destination(l1)),&l2)) { */
+/*      droplabel(l1); */
+/*      copylabel(l2); */
+/*      return replace(c,1,makeCODEif_icmpne(l2,NULL)); */
+/*   } */
+/*   return 0; */
+/* } */
+
 /* dup
  * aload x
  * swap
@@ -375,6 +423,7 @@ int simplify_aload_swap_putfield(CODE **c)
  * ------>
  * ldc x (+|-|*|/|%) y
  */
+/* Soundness: TODO */
 int simplify_constant_op(CODE **c)
 { int x,y,k;
   int num_neg = 0;
@@ -416,6 +465,7 @@ int simplify_constant_op(CODE **c)
  * L:
  * return
  */
+/* Soundness: TODO */
 int remove_superfluous_return(CODE** c)
 { int L;
   CODE *c1 = next(*c);
@@ -541,6 +591,7 @@ int remove_deadlabel(CODE **c)
  * ireturn
  */
  /* [...:<frame>:i] */
+/* Soundness: TODO */
 int simplify_ireturn_label(CODE **c)
 { int l;
   if(is_ireturn(*c) &&
@@ -555,6 +606,7 @@ int simplify_ireturn_label(CODE **c)
  * --------->
  * areturn
  */
+/* Soundness: TODO */
 int simplify_areturn_label(CODE **c)
 { int l;
   if(is_areturn(*c) &&
@@ -578,6 +630,7 @@ int simplify_areturn_label(CODE **c)
  * ...
  * stop_0:
  */
+/* Soundness: TODO */
 int simplify_if_stmt1(CODE **c)
 { int l1,l2,l3;
   if (is_if(c,&l1) &&
@@ -615,6 +668,7 @@ int simplify_if_stmt1(CODE **c)
 /* Extension of simplify_if_stmt1 to simplify the following if statement:
  * if (i != 0 && i != 4 && i != 8 ) {}
  */
+/* Soundness: TODO */
 int simplify_if_stmt2(CODE **c)
 { int l1,l2,l3;
   if (is_if(c,&l1) &&
@@ -658,6 +712,7 @@ int simplify_if_stmt2(CODE **c)
 /* Extension of simplify_if_stmt1 to simplify the following if statement:
  * if (i == 0 || i == 4 || i == 8 ) {}
  */
+/* Soundness: TODO */
 int simplify_if_stmt3(CODE **c)
 { int l1,l2,l3;
   if (is_if(c,&l1) &&
@@ -743,6 +798,7 @@ int simplify_if_stmt3(CODE **c)
  * --------->
  * ss = new BacktrackSolver() ;
  */
+/* Soundness: TODO */
 int simplify_if_stmt4(CODE **c)
 { int a,l1,l2,l3,k1,k2,lines; char *b,*x1,*x2,*y1,*y2;
   if (is_aload(*c,&a) &&
@@ -1001,6 +1057,7 @@ int remove_popped_computation(CODE **c)
  * [sequence with no (a|i)load x, (a|i)store x, no branching in/out]
  * <method end>
  */
+/* Soundness: TODO */
 int unused_store_to_pop(CODE **c)
 {
   int x, y;
@@ -1063,6 +1120,7 @@ int optimize_isub_branching(CODE **c)
  * --------->
  * goto L
  */
+/* Soundness: TODO */
 int optimize_null_constant_branching(CODE **c)
 { int L;
   if (!is_aconst_null(*c))      { return 0; }
@@ -1086,6 +1144,7 @@ int optimize_null_constant_branching(CODE **c)
  *                   ldc_string b
  *                   label k
  */
+/* Soundness: TODO */
 int simplify_string_constant(CODE **c)
 { int x,y,i,j,k; char *a,*b;
   if (is_ldc_string(*c,&a) &&
