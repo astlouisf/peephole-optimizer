@@ -1223,10 +1223,12 @@ int init_patterns()
 */
   ADD_PATTERN(optimize_istore);
   ADD_PATTERN(optimize_astore);
-  /*ADD_PATTERN(unused_store_to_pop);*/
+  /*ADD_PATTERN(unused_store_to_pop);*/ 
   ADD_PATTERN(remove_popped_computation);
-
+/*
+ * Incompatible with simplify ifs_stmt#
   ADD_PATTERN(point_furthest_label);
+*/
   ADD_PATTERN(remove_deadlabel);
   ADD_PATTERN(remove_superfluous_return);
 
