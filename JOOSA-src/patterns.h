@@ -572,6 +572,7 @@ int remove_iload_istore(CODE **c)
  * 
  */
 /* Soundness : if a label has no incoming edges, the program does not use it and won't use it in the future */
+int remove_deadlabel(CODE **c)
 { int l;
   if(is_label(*c,&l) && deadlabel(l)) {
     return replace(c, 1, NULL); /*kill_line(c); */
@@ -580,7 +581,7 @@ int remove_iload_istore(CODE **c)
 }
 
 /* ireturn
- * L:
+ * goto l
  * --------->
  * ireturn
  */
@@ -595,7 +596,7 @@ int simplify_ireturn_label(CODE **c)
 }
 
 /* areturn
- * L:
+ * goto l
  * --------->
  * areturn
  */
