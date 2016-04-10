@@ -997,11 +997,11 @@ int remove_popped_computation(CODE **c)
 
 /*
  * (i|a)store x
- * [sequence with no iload x, astore x or istore x]
+ * [sequence with no (a|i)load x, (a|i)store x]
  * <method end>
  * --------->
  * pop
- * [sequence with no iload x, astore x or istore x]
+ * [sequence with no (a|i)load x, (a|i)store x]
  * <method end>
  */
 int unused_store_to_pop(CODE **c)
@@ -1014,6 +1014,7 @@ int unused_store_to_pop(CODE **c)
   } while (cn != NULL &&
           !is_if(&cn, &y) &&
           !is_goto(cn, &y) &&
+          !is_label(cn, &y) &&
           !(is_iload(cn, &y) && x == y) &&
           !(is_aload(cn, &y) && x == y) &&
           !(is_astore(cn, &y) && x == y) && 
@@ -1223,7 +1224,7 @@ int init_patterns()
 */
   ADD_PATTERN(optimize_istore);
   ADD_PATTERN(optimize_astore);
-  /*ADD_PATTERN(unused_store_to_pop);*/ 
+  ADD_PATTERN(unused_store_to_pop); 
   ADD_PATTERN(remove_popped_computation);
 /*
  * Incompatible with simplify ifs_stmt#
