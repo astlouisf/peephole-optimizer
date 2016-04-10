@@ -290,24 +290,6 @@ int optimize_istore(CODE **c)
   return 0;
 }
 
-/* /\* generalize this?? *\/ */
-/* /\* ldc x */
-/*  * aload y */
-/*  * swap */
-/*  * ---------> */
-/*  * aload y */
-/*  * ldc x */
-/*  *\/ */
-/* int simplify_const_load_swap(CODE **c) */
-/* { int x,y; */
-/*   if (is_ldc_int(*c,&x) && */
-/*       is_aload(next(*c),&y) && */
-/*       is_swap(next(next(*c)))) { */
-/*     return replace(c,3,makeCODEaload(y, makeCODEldc_int(x,NULL))); */
-/*   } */
-/*   return 0; */
-/* } */
-
 /* iload x
  * iload x
  * --------->
@@ -359,6 +341,19 @@ int simplify_aload_getfield_aload_swap(CODE **c)
  * aload x
  * swap
  * putfield k
+ */
+/* Soundness (since the first and last lines are the same):
+ * [...:v]
+ * [...:v:v]
+ * [...:v:v:local[x]]
+ * [...:v:local[x]:v]
+ * [...:v], local[x].f=v
+ * [...], local[x].f=v
+ * -------->
+ * [...:v]
+ * [...:v:local[x]]
+ * [...:local[x]:v]
+ * [...], local[x].f=v
  */
 int simplify_aload_swap_putfield(CODE **c)
 { int x; char *k;
@@ -491,6 +486,13 @@ int remove_nop(CODE **c)
  * --------->
  * 
  */
+/* Soundness (the first and last lines are the same):
+ * [...:v]
+ * [...:v:v]
+ * [...:v]
+ * -------->
+ * [...:v]
+ */
 int remove_dup_pop(CODE **c)
 { 
   if (is_dup(*c) &&
@@ -504,6 +506,13 @@ int remove_dup_pop(CODE **c)
  * swap
  * --------->
  * 
+ *
+ * Soundness (the first and last lines are the same):
+ * [...:x:y]
+ * [...:y:x]
+ * [...:x:y]
+ * -------->
+ * [...:x:y]
  */
 int remove_2_swap(CODE **c)
 { 
@@ -514,33 +523,45 @@ int remove_2_swap(CODE **c)
   return 0;
 }
 
-/*
- * My compiler is having alzheimer.
- * It tries remember thing it already knows.
- * What a waste.
+/* aload x
+ * astore x
+ * --------->
+ * 
  *
- * This is the equivalent of writting `x = x` in
- * a c program. It's useless.
- *
- * iload x      aload x
- * istore x     astore x
- * --------->   --------->
- * *nothing*    *nothing*
+ * Soundness (the first and last lines are the same):
+ * [...]
+ * [...:local[x]]
+ * [...]	local[k]=local[k]
+ * -------->
+ * [...]	local[k]=local[k] (always true)
  */
-int remove_iload_istore(CODE **c)
+int remove_aload_astore(CODE **c)
 { int x1,x2;
-  if (is_iload(*c,&x1) &&
-      is_istore(next(*c),&x2) &&
-      x1 == x2) {
+  if (is_aload(*c,&x1) &&
+      is_astore(next(*c),&x2) &&
+      x1 == x2)
+  {
     return replace_modified(c,2,NULL);
   }
   return 0;
 }
 
-int remove_aload_astore(CODE **c)
+/* iload x
+ * istore x
+ * --------->
+ * 
+ *
+ * Soundness (same as for aload, but with ints):
+ * [...]
+ * [...:local[x]]
+ * [...]	local[k]=local[k]
+ * -------->
+ * [...]	local[k]=local[k] (always true)
+ */
+int remove_iload_istore(CODE **c)
 { int x1,x2;
-  if (is_aload(*c,&x1) &&
-      is_astore(next(*c),&x2) &&
+  if (is_iload(*c,&x1) &&
+      is_istore(next(*c),&x2) &&
       x1 == x2) {
     return replace_modified(c,2,NULL);
   }
@@ -556,6 +577,8 @@ int remove_aload_astore(CODE **c)
  * L:    (with no incoming edges)
  * --------->
  * 
+ * Soundness : if a label has no incoming edges, the program
+ * does not use it and won't use it in the future
  */
 int remove_deadlabel(CODE **c)
 { int l;
@@ -570,6 +593,7 @@ int remove_deadlabel(CODE **c)
  * --------->
  * ireturn
  */
+ /* [...:<frame>:i] */
 int simplify_ireturn_label(CODE **c)
 { int l;
   if(is_ireturn(*c) &&
@@ -592,21 +616,6 @@ int simplify_areturn_label(CODE **c)
   }
   return 0;
 }
-
-/* /\* return */
-/*  * L: */
-/*  * ---------> */
-/*  * return */
-/*  *\/ */
-/* int simplify_return_label(CODE **c) */
-/* { int l; */
-/*   if(is_areturn(*c) && */
-/*      is_goto(next(*c),&l)) { */
-/*     return replace_modified(c,2,makeCODEreturn(NULL)); */
-/*   } */
-/*   return 0; */
-/* } */
-
 
 /* if_icmpeq true_1
  * iconst_0
@@ -875,6 +884,16 @@ int simplify_if_stmt4(CODE **c)
  * -------->
  * load or const 2
  * load or const 1
+ *
+ * Soundness (the first and last lines are the same):
+ * [...]
+ * [...:x]
+ * [...:x:y]
+ * [...:y:x]
+ * -------->
+ * [...]
+ * [...:y]
+ * [...:y:x]
  */
 int precompute_simple_swap(CODE** c)
 { int   itmp;
@@ -937,6 +956,16 @@ int precompute_simple_swap(CODE** c)
  * aload y
  * iload x
  */ 
+/* Soundness (same as the last one but with an object):
+ * [...]
+ * [...:x]
+ * [...:x:o]
+ * [...:o:x]
+ * -------->
+ * [...]
+ * [...:o]
+ * [...:o:x]
+ */
 int simplify_swap1(CODE **c)
 { int x,y;
   if (is_iload(*c,&x) &&
@@ -948,15 +977,36 @@ int simplify_swap1(CODE **c)
   return 0;
 }
 
-/* ldc x
+/* new c
+ * dup
+ * ldc x
  * invokenonvirtual k
  * aload y
  * swap
  * --------->
  * aload y
+ * new c
+ * dup
  * ldc x
  * invokenonvirtual k
- */ 
+ *
+ *
+ * Soundness (the first and last lines are the same, method has same arguments):
+ * [...]
+ * [...:c]
+ * [...:c:c]
+ * [...:c:c:x] - method call
+ * [...:c]
+ * [...:c:y]
+ * [...:y:c]
+ * -------->
+ * [...]
+ * [...:y]
+ * [...:y:c]
+ * [...:y:c:c]
+ * [...:y:c:c:x] - method call
+ * [...:y:c]
+ */
 int simplify_swap2(CODE **c)
 { int x,y; char *a,*b;
   if (is_new(*c,&a) &&
@@ -989,11 +1039,17 @@ int simplify_swap2(CODE **c)
  * modifying elemments under its starting point.
  *
  *
- * instruction without side effect
- * ... 
+ * [sequence of instruction without side effect]
  * pop (if stack height of 1)
  * ---------->
+ * *nothing*
  *
+ * Soundness
+ * =========
+ * [...:x] <- result of the sequence of instruction
+ * [...]   <- popped
+ * --------->
+ * [...]
  */
 int remove_popped_computation(CODE **c)
 { int sh = 0; /* stack height */
@@ -1069,27 +1125,6 @@ int unused_store_to_pop(CODE **c)
   return 0;
 }
 
-
-/* also do this for astore and for _k (does this save memory?)
- * istore k
- * iload m
- * k = m
- * ------>
- * dup
- * istore k
- */
-
-
-
-/* branching */
-/* 
- * iload_0
- * ifeq L
- * --------->
- * goto L
- */
-
-
 /*
  * branch_instruction_to L1
  * ...
@@ -1127,19 +1162,14 @@ int point_furthest_label(CODE** c)
   }
 }
 
-
-/* 
- * iload k (or iload_k, where k != 0)
- * ifne L
- * --------->
- * goto L
- */
-
 /* isub          isub
  * ifeq L        ifne L
  * --------->    --------->
  * if_icmpeq L   if_icmpne L
  */ 
+/* Soundness : if_icmpeq branches when i1 == i2 and isub ifeq branches when i1 == i2 (since ifeq branchges on 0)
+ * the same applies for icmpne, but with != instead of ==
+ */
 int optimize_isub_branching(CODE **c)
 { int L;
   if (!is_isub(*c)) { return 0; }
@@ -1171,19 +1201,24 @@ int optimize_null_constant_branching(CODE **c)
   return replace_modified(c,2,makeCODEgoto(L, NULL));
 }
 
-/* ldc_string a
- * dup
- * ifnull x
- * goto y
- * label j
- * pop
- * ldc_string b
- * label k
- * --------->
- * ldc_string a
+/* ldc_string a      aload i
+ * dup               dup
+ * ifnull x          ifnull x
+ * goto y            goto y
+ * label j           label j
+ * pop               pop
+ * ldc_string b      ldc_string b
+ * label k           label k
+ * --------->        --------->
+ * ldc_string a      aload i
+ *                   dup
+ *                   ifnonnull y
+ *                   pop
+ *                   ldc_string b
+ *                   label k
  */
 int simplify_string_constant(CODE **c)
-{ int x,y,j,k; char *a,*b;
+{ int x,y,i,j,k; char *a,*b;
   if (is_ldc_string(*c,&a) &&
       is_dup(next(*c)) &&
       is_ifnull(nextby(*c,2),&x) &&
@@ -1193,6 +1228,21 @@ int simplify_string_constant(CODE **c)
       is_ldc_string(nextby(*c,6),&b) &&
       is_label(nextby(*c,7),&k)) {
     return replace_modified(c,8,makeCODEldc_string(a,NULL));
+  } else if (is_aload(*c,&i) &&
+      is_dup(next(*c)) &&
+      is_ifnull(nextby(*c,2),&x) &&
+      is_goto(nextby(*c,3),&y) &&
+      is_label(nextby(*c,4),&j) &&
+      is_pop(nextby(*c,5)) &&
+      is_ldc_string(nextby(*c,6),&b) &&
+      is_label(nextby(*c,7),&k)) {
+    copylabel(y);
+    return replace_modified(c,8,makeCODEaload(i,
+                                makeCODEdup(
+                                makeCODEifnonnull(y,
+                                makeCODEpop(
+                                makeCODEldc_string(b,
+                                makeCODElabel(k,NULL)))))));
   }
   return 0;
 }
@@ -1278,10 +1328,8 @@ int init_patterns()
   ADD_PATTERN(simplify_trivial_op);
   ADD_PATTERN(optimize_istore);
   ADD_PATTERN(optimize_astore);
-
-  ADD_PATTERN(unused_store_to_pop); 
+  ADD_PATTERN(unused_store_to_pop);
   ADD_PATTERN(remove_popped_computation);
-
   ADD_PATTERN(remove_deadlabel);
   ADD_PATTERN(remove_superfluous_return);
   ADD_PATTERN(remove_2_swap);
