@@ -550,9 +550,8 @@ int remove_iload_istore(CODE **c)
  */
 int remove_deadlabel(CODE **c)
 { int l;
-  if(is_label(*c,&l) &&
-     deadlabel(l)) {
-    return kill_line(c);
+  if(is_label(*c,&l) && deadlabel(l)) {
+    return replace(c, 1, NULL); /*kill_line(c); */
   }
   return 0;
 }
@@ -892,51 +891,27 @@ int precompute_simple_swap(CODE** c)
 
   switch (c1->kind)
   {
-  case getfieldCK:
-    out = makeCODEgetfield(c1->val.getfieldC, NULL);
-    break;
-  case iloadCK:
-    out = makeCODEiload(c1->val.iloadC, NULL);
-    break;
-  case aloadCK:
-    out = makeCODEaload(c1->val.aloadC, NULL);
-    break;
-  case ldc_intCK:
-    out = makeCODEldc_int(c1->val.ldc_intC, NULL);
-    break;
-  case ldc_stringCK:
-    out = makeCODEldc_string(c1->val.ldc_stringC, NULL);
-    break;
-  case aconst_nullCK:
-    out = makeCODEaconst_null(NULL);
-    break;
+  case getfieldCK:    out = makeCODEgetfield(c1->val.getfieldC, NULL);     break;
+  case iloadCK:       out = makeCODEiload(c1->val.iloadC, NULL);           break;
+  case aloadCK:       out = makeCODEaload(c1->val.aloadC, NULL);           break;
+  case ldc_intCK:     out = makeCODEldc_int(c1->val.ldc_intC, NULL);       break;
+  case ldc_stringCK:  out = makeCODEldc_string(c1->val.ldc_stringC, NULL); break;
+  case aconst_nullCK: out = makeCODEaconst_null(NULL);                     break;
   default: return 0;
   }
 
   switch (c2->kind)
   {
-  case getfieldCK:
-    out = makeCODEgetfield(c2->val.getfieldC, out);
-    break;
-  case iloadCK:
-    out = makeCODEiload(c2->val.iloadC, out);
-    break;
-  case aloadCK:
-    out = makeCODEaload(c2->val.aloadC, out);
-    break;
-  case ldc_intCK:
-    out = makeCODEldc_int(c2->val.ldc_intC, out);
-    break;
-  case ldc_stringCK:
-    out = makeCODEldc_string(c2->val.ldc_stringC, out);
-    break;
-  case aconst_nullCK:
-    out = makeCODEaconst_null(out);
-    break;
+  case getfieldCK:    return replace(c, 3, makeCODEgetfield(c2->val.getfieldC, out));
+  case iloadCK:       return replace(c, 3, makeCODEiload(c2->val.iloadC, out));
+  case aloadCK:       return replace(c, 3, makeCODEaload(c2->val.aloadC, out));
+  case ldc_intCK:     return replace(c, 3, makeCODEldc_int(c2->val.ldc_intC, out));
+  case ldc_stringCK:  return replace(c, 3, makeCODEldc_string(c2->val.ldc_stringC,
+                                                              out));
+  case aconst_nullCK: return replace(c, 3, makeCODEaconst_null(out));
   default: return 0;
   }
 
-  return replace(c, 3, out);
 }
 
 
@@ -1071,18 +1046,43 @@ int unused_store_to_pop(CODE **c)
  */
 
 
-/* L1:
+/*
+ * branch_instruction_to L1
+ * ...
+ * L1:
  * L2:
  * ------>
- * L1:    (replace all references to L2 with L1)
+ * branch_instruction_to L2
+ * ...
+ * L1:
+ * L2:
  */
-/*
-int merge_double_label(CODE** c)
+int point_furthest_label(CODE** c)
 { int L1, L2;
-  if(!is_label(*c, &L1)) { return 0; }
-  if(!is_label(*c, &L2)) { return 0; }
+  if(!uses_label(*c, &L1)) { return 0; }
+  if(!is_label(next(destination(L1)), &L2)) { return 0; }
+
+  copylabel(L2);
+
+  switch((*c)->kind)
+  {
+  case gotoCK:      return replace_modified(c, 1, makeCODEgoto(L2, NULL));
+  case ifeqCK:      return replace_modified(c, 1, makeCODEifeq(L2, NULL));
+  case ifneCK:      return replace_modified(c, 1, makeCODEifne(L2, NULL));
+  case ifnullCK:    return replace_modified(c, 1, makeCODEifnull(L2, NULL));
+  case ifnonnullCK: return replace_modified(c, 1, makeCODEifnonnull(L2, NULL));
+  case if_icmpeqCK: return replace_modified(c, 1, makeCODEif_icmpeq(L2, NULL));
+  case if_icmpneCK: return replace_modified(c, 1, makeCODEif_icmpne(L2, NULL));
+  case if_icmpgtCK: return replace_modified(c, 1, makeCODEif_icmpgt(L2, NULL));
+  case if_icmpltCK: return replace_modified(c, 1, makeCODEif_icmplt(L2, NULL));
+  case if_icmpleCK: return replace_modified(c, 1, makeCODEif_icmple(L2, NULL));
+  case if_icmpgeCK: return replace_modified(c, 1, makeCODEif_icmpge(L2, NULL));
+  case if_acmpeqCK: return replace_modified(c, 1, makeCODEif_icmpeq(L2, NULL));
+  case if_acmpneCK: return replace_modified(c, 1, makeCODEif_icmpne(L2, NULL));
+  default:          return 0;
+  }
 }
-*/
+
 
 /* 
  * iload k (or iload_k, where k != 0)
@@ -1223,15 +1223,19 @@ int init_patterns()
 */
   ADD_PATTERN(optimize_istore);
   ADD_PATTERN(optimize_astore);
-  /*ADD_PATTERN(unused_store_to_pop);*/
+  /*ADD_PATTERN(unused_store_to_pop);*/ 
   ADD_PATTERN(remove_popped_computation);
+/*
+ * Incompatible with simplify ifs_stmt#
+  ADD_PATTERN(point_furthest_label);
+*/
+  ADD_PATTERN(remove_deadlabel);
   ADD_PATTERN(remove_superfluous_return);
 
 /*  ADD_PATTERN(remove_dup_pop); remove_popped_computation handles this */ 
   ADD_PATTERN(remove_2_swap);
   ADD_PATTERN(remove_aload_astore);
   ADD_PATTERN(remove_iload_istore);
-  ADD_PATTERN(remove_deadlabel);
   ADD_PATTERN(simplify_if_stmt1);
   ADD_PATTERN(simplify_if_stmt2);
   ADD_PATTERN(simplify_if_stmt3);
