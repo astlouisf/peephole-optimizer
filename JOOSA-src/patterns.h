@@ -855,6 +855,11 @@ int simplify_if_stmt4(CODE **c)
 
 
 /*
+ * Swap simple instructions. Loads and const don't have
+ * side effects and are easily swappable at compile time
+ * to remove the swap instruction.
+ *
+ *
  * load or const 1
  * load or const 2
  * swap
@@ -963,7 +968,15 @@ int simplify_swap2(CODE **c)
 
 
 /*
- * ...
+ * If a sequence without side effects generates only one item
+ * on the stack and it is popped, this sequence hasn't done
+ * anything useful and can be removed.
+ *
+ * We make sure to only test sequences than span a unique
+ * basic block.
+ *
+ *
+ *
  * instruction without side effect
  * ... 
  * pop (if stack height of 1)
@@ -996,31 +1009,46 @@ int remove_popped_computation(CODE **c)
 
 
 /*
+ * If we find a store we check if it gets overwritten
+ * in the rest of the basic block. If it does, storing
+ * a value is equivalent to only consuming it.
+ *
+ * The generated pop enables other optimisation with
+ * `remove_popped_computation`
+ *
  * (i|a)store x
- * [sequence with no (a|i)load x, (a|i)store x]
+ * [sequence with no (a|i)load x, (a|i)store x, no branching in/out]
  * <method end>
  * --------->
  * pop
- * [sequence with no (a|i)load x, (a|i)store x]
+ * [sequence with no (a|i)load x, (a|i)store x, no branching in/out]
  * <method end>
  */
 int unused_store_to_pop(CODE **c)
 {
   int x, y;
   CODE* cn = *c;
-  if (!is_istore(*c, &x) && !is_astore(*c,&y)) { return 0; }
+  if (!is_istore(*c, &x) && !is_astore(*c,&x)) { return 0; }
   do {
     cn = next(cn);
   } while (cn != NULL &&
           !is_if(&cn, &y) &&
           !is_goto(cn, &y) &&
           !is_label(cn, &y) &&
+          !is_return(cn) &&
+          !is_ireturn(cn) &&
+          !is_areturn(cn) &&
           !(is_iload(cn, &y) && x == y) &&
           !(is_aload(cn, &y) && x == y) &&
           !(is_astore(cn, &y) && x == y) && 
           !(is_istore(cn, &y) && x == y));
 
-  if (cn == NULL || ((is_astore(cn, &y) || is_istore(cn, &y)) && x == y)) {
+  if (cn == NULL ||
+      is_return(cn) ||
+      is_areturn(cn) ||
+      is_ireturn(cn) ||
+      ((is_astore(cn, &y) || is_istore(cn, &y)) && x == y))
+  {
       return replace_modified(c, 1, makeCODEpop(NULL)); /* Stored value unused... */
   }
   return 0;
@@ -1112,7 +1140,11 @@ int optimize_isub_branching(CODE **c)
   return 0;
 }
 
-/* aconst_null
+/*
+ * Loading a null and automatically testing for null
+ * will be equivalent to a go to....
+ *
+ * aconst_null
  * ifnull L
  * --------->
  * goto L
@@ -1207,11 +1239,20 @@ OPTI optimization[OPTS] = {simplify_multiplication_right,
 /* new style for giving patterns */
 
 int init_patterns()
-{ ADD_PATTERN(simplify_multiplication_right);
+{ 
+/*
+  ADD_PATTERN(remove_nop);
+
+  Incompatible with simplify ifs_stmt#
+  ADD_PATTERN(point_furthest_label);
+*/
+/*  ADD_PATTERN(remove_dup_pop); remove_popped_computation handles this */ 
+/* ADD_PATTERN(simplify_const_load_swap); */
+
+  ADD_PATTERN(simplify_multiplication_right);
   ADD_PATTERN(simplify_astore);
   ADD_PATTERN(positive_increment);
   ADD_PATTERN(simplify_goto_goto);
-  /*ADD_PATTERN(constant_fold_ineg);*/
   ADD_PATTERN(simplify_multiplication_left);
   ADD_PATTERN(simplify_istore);
   ADD_PATTERN(simplify_aload);
@@ -1219,21 +1260,14 @@ int init_patterns()
   ADD_PATTERN(simplify_aload_swap_putfield);
   ADD_PATTERN(simplify_constant_op);
   ADD_PATTERN(simplify_trivial_op);
-/*
-  ADD_PATTERN(remove_nop);
-*/
   ADD_PATTERN(optimize_istore);
   ADD_PATTERN(optimize_astore);
+
   ADD_PATTERN(unused_store_to_pop); 
   ADD_PATTERN(remove_popped_computation);
-/*
- * Incompatible with simplify ifs_stmt#
-  ADD_PATTERN(point_furthest_label);
-*/
+
   ADD_PATTERN(remove_deadlabel);
   ADD_PATTERN(remove_superfluous_return);
-
-/*  ADD_PATTERN(remove_dup_pop); remove_popped_computation handles this */ 
   ADD_PATTERN(remove_2_swap);
   ADD_PATTERN(remove_aload_astore);
   ADD_PATTERN(remove_iload_istore);
@@ -1245,7 +1279,6 @@ int init_patterns()
   ADD_PATTERN(simplify_swap2);
   ADD_PATTERN(optimize_null_constant_branching);
   ADD_PATTERN(optimize_isub_branching);
-  /* ADD_PATTERN(simplify_const_load_swap); */
   ADD_PATTERN(precompute_simple_swap);
   ADD_PATTERN(simplify_aload_getfield_aload_swap);
   ADD_PATTERN(simplify_ireturn_label);
