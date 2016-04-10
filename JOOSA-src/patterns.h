@@ -514,25 +514,18 @@ int remove_2_swap(CODE **c)
   return 0;
 }
 
-/* aload x
- * astore x
- * --------->
- * 
- */
-int remove_aload_astore(CODE **c)
-{ int x1,x2;
-  if (is_aload(*c,&x1) &&
-      is_astore(next(*c),&x2) &&
-      x1 == x2) {
-    return replace_modified(c,2,NULL);
-  }
-  return 0;
-}
-
-/* iload x
- * istore x
- * --------->
- * 
+/*
+ * My compiler is having alzheimer.
+ * It tries remember thing it already knows.
+ * What a waste.
+ *
+ * This is the equivalent of writting `x = x` in
+ * a c program. It's useless.
+ *
+ * iload x      aload x
+ * istore x     astore x
+ * --------->   --------->
+ * *nothing*    *nothing*
  */
 int remove_iload_istore(CODE **c)
 { int x1,x2;
@@ -544,14 +537,30 @@ int remove_iload_istore(CODE **c)
   return 0;
 }
 
-/* L:    (with no incoming edges)
+int remove_aload_astore(CODE **c)
+{ int x1,x2;
+  if (is_aload(*c,&x1) &&
+      is_astore(next(*c),&x2) &&
+      x1 == x2) {
+    return replace_modified(c,2,NULL);
+  }
+  return 0;
+}
+
+
+/*
+ * Dead labels serve no purpose.
+ * They don't take space but they usually break patterns.
+ * So we kill them.
+ *
+ * L:    (with no incoming edges)
  * --------->
  * 
  */
 int remove_deadlabel(CODE **c)
 { int l;
   if(is_label(*c,&l) && deadlabel(l)) {
-    return replace(c, 1, NULL); /*kill_line(c); */
+    return kill_line(c);
   }
   return 0;
 }
@@ -975,6 +984,9 @@ int simplify_swap2(CODE **c)
  * We make sure to only test sequences than span a unique
  * basic block.
  *
+ * This is sound because we make sure the remove sequence
+ * doesn't have side effect such as storing a value or
+ * modifying elemments under its starting point.
  *
  *
  * instruction without side effect
@@ -1012,6 +1024,9 @@ int remove_popped_computation(CODE **c)
  * If we find a store we check if it gets overwritten
  * in the rest of the basic block. If it does, storing
  * a value is equivalent to only consuming it.
+ *
+ * This is sound because we only consider a `straight` sequence
+ * of instructions.
  *
  * The generated pop enables other optimisation with
  * `remove_popped_computation`
@@ -1248,6 +1263,7 @@ int init_patterns()
 */
 /*  ADD_PATTERN(remove_dup_pop); remove_popped_computation handles this */ 
 /* ADD_PATTERN(simplify_const_load_swap); */
+/* ADD_PATTERN(simplify_swap1); Done by precompute simple swap */
 
   ADD_PATTERN(simplify_multiplication_right);
   ADD_PATTERN(simplify_astore);
@@ -1275,7 +1291,6 @@ int init_patterns()
   ADD_PATTERN(simplify_if_stmt2);
   ADD_PATTERN(simplify_if_stmt3);
   ADD_PATTERN(simplify_if_stmt4);
-  ADD_PATTERN(simplify_swap1);
   ADD_PATTERN(simplify_swap2);
   ADD_PATTERN(optimize_null_constant_branching);
   ADD_PATTERN(optimize_isub_branching);
